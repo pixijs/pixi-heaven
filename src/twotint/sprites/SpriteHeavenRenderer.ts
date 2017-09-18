@@ -16,8 +16,8 @@ varying vec4 vLight, vDark;
 varying float vTextureId;
 
 void main(void){
-    gl_Position.xyz = projectionMatrix * vec3(aVertexPosition, 1.0);
-    gl_Position.w = 1.0;
+    gl_Position.xyw = projectionMatrix * vec3(aVertexPosition, 1.0);
+    gl_Position.z = 0.0;
     
     vTextureCoord = aTextureCoord;
     vTextureId = aTextureId;
@@ -42,7 +42,7 @@ gl_FragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.r
 
 		createVao(vertexBuffer: PIXI.glCore.GLBuffer) {
 			const attrs = this.shader.attributes;
-			this.vertSize = attrs.aTextureId ? 7 : 6;
+			this.vertSize = attrs.aTextureId ? 6 : 5;
 			this.vertByteSize = this.vertSize * 4;
 
 
@@ -55,7 +55,7 @@ gl_FragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.r
 				.addAttribute(vertexBuffer, attrs.aDark, gl.UNSIGNED_BYTE, true, this.vertByteSize, 4 * 4);
 
 			if (attrs.aTextureId) {
-				vao.addAttribute(vertexBuffer, attrs.aTextureId, gl.FLOAT, false, this.vertByteSize, 6 * 4);
+				vao.addAttribute(vertexBuffer, attrs.aTextureId, gl.FLOAT, false, this.vertByteSize, 5 * 4);
 			}
 
 			return vao;
@@ -69,23 +69,22 @@ gl_FragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.r
 
 			const n = vertexData.length / 2;
 
-			const lightArgb = sprite.color.lightArgb;
-			const darkArgb = sprite.color.darkArgb;
+			const lightRgba = sprite.color.lightRgba;
+			const darkRgba = sprite.color.darkRgba;
 			const stride = this.vertSize;
 
 			for (let i = 0; i < n; i++) {
 				float32View[index] = vertexData[i * 2];
 				float32View[index + 1] = vertexData[i * 2 + 1];
-				uint32View[index + 2] = uvs[i * 2];
-				uint32View[index + 3] = uvs[i * 2 + 1];
-				uint32View[index + 4] = lightArgb;
-				uint32View[index + 5] = darkArgb;
+				uint32View[index + 2] = uvs[i];
+				uint32View[index + 3] = lightRgba;
+				uint32View[index + 4] = darkRgba;
 				index += stride;
 			}
 
-			if (stride === 7) {
+			if (stride === 6) {
 				for (let i = 0; i < n; i++) {
-					float32View[index + 6] = textureId;
+					float32View[index + 5] = textureId;
 				}
 			}
 		}

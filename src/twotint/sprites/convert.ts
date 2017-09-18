@@ -1,6 +1,6 @@
 declare module PIXI {
 	interface Sprite {
-		convertToHeaven(): void;
+		convertToHeaven(): pixi_heaven.Sprite;
 	}
 
 	interface Mesh {
@@ -25,16 +25,16 @@ namespace pixi_heaven {
 	};
 
 	function tintGet() {
-		return this.color.tintRgb;
+		return this.color.tintBGR;
 	}
 
 	function tintSet(value: number) {
-		this.color.tintRgb = value;
+		this.color.tintBGR = value;
 	}
 
 	function tintRGBGet() {
 		this.color.updateTransform();
-		return this.color.lightArgb & 0xffffff;
+		return this.color.lightRgba & 0xffffff;
 	}
 
 	(PIXI as any).Sprite.prototype.convertToHeaven = function () {
@@ -53,9 +53,11 @@ namespace pixi_heaven {
 			enumerable: true,
 			configurable: true
 		});
-		this.pluginName = 'spriteHeaven';
 		this._onTextureUpdate = Sprite.prototype._onTextureUpdate;
+		this.updateTransform = Sprite.prototype.updateTransform;
 		this.color = new ColorTransform();
+		this.pluginName = 'spriteHeaven';
+		return this;
 	};
 
 	(PIXI as any).Container.prototype.convertSubtreeToHeaven = function () {

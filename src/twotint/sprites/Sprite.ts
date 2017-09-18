@@ -11,15 +11,42 @@ namespace pixi_heaven {
 
 		get _tintRGB() {
 			this.color.updateTransform();
-			return this.color.lightArgb & 0xffffff;
+			return this.color.lightRgba & 0xffffff;
+		}
+
+		set _tintRGB(value: number) {
+			//nothing
 		}
 
 		get tint() {
-			return this.color.tintRgb;
+			return this.color ? this.color.tintBGR : 0xffffff;
 		}
 
 		set tint(value: number) {
-			this.color.tintRgb = value;
+			this.color && (this.color.tintBGR = value);
+		}
+
+		updateTransform() {
+			this._boundsID++;
+
+			this.transform.updateTransform(this.parent.transform);
+
+			// TODO: check render flags, how to process stuff here
+			this.worldAlpha = this.alpha * this.parent.worldAlpha;
+			if (this.color) {
+				this.color.alpha = this.worldAlpha;
+				this.color.updateTransform();
+			}
+
+			for (let i = 0, j = this.children.length; i < j; ++i)
+			{
+				const child = this.children[i];
+
+				if (child.visible)
+				{
+					child.updateTransform();
+				}
+			}
 		}
 
 		_onTextureUpdate() {

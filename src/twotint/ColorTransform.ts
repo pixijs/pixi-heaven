@@ -9,9 +9,9 @@ namespace pixi_heaven {
 		_updateID = 0;
 		_currentUpdateID = -1;
 
-		darkArgb: number;
-		lightArgb: number;
-		hasNoTint: boolean;
+		darkRgba: number = 0;
+		lightRgba: number = -1;
+		hasNoTint: boolean = true;
 
 		get darkR() {
 			return this.dark[0];
@@ -93,17 +93,41 @@ namespace pixi_heaven {
 			this._updateID++;
 		}
 
-		get tintRgb() {
+		get tintBGR() {
 			const light = this.light;
 			return (light[0] << 16) + (light[1] << 8) + (light[2] | 0);
 		}
 
-		set tintRgb(value: number) {
+		set tintBGR(value: number) {
 			const light = this.light;
 
-			light[0] = (value >> 16) & 0xff;
-			light[1] = (value >> 8) & 0xff;
-			light[2] = value & 0xff;
+			light[0] = ((value >> 16) & 0xff) / 255.0;
+			light[1] = ((value >> 8) & 0xff) / 255.0;
+			light[2] = (value & 0xff) / 255.0;
+		}
+
+		setLight(R: number, G: number, B: number) {
+			const color = this.light;
+
+			if (color[0] === R && color[1] === G && color[2] === B) {
+				return;
+			}
+			color[0] = R;
+			color[1] = G;
+			color[2] = B;
+			this._updateID++;
+		}
+
+		setDark(R: number, G: number, B: number) {
+			const color = this.dark;
+
+			if (color[0] === R && color[1] === G && color[2] === B) {
+				return;
+			}
+			color[0] = R;
+			color[1] = G;
+			color[2] = B;
+			this._updateID++;
 		}
 
 		clear() {
@@ -122,12 +146,11 @@ namespace pixi_heaven {
 		updateTransformLocal() {
 			const dark = this.dark, light = this.light;
 			const la = 255 * (1.0 + (light[3] - 1.0) * dark[3]);
-
 			this.hasNoTint = dark[0] === 0.0 && dark[1] === 0.0 && dark[2] === 0.0
 				&& light[0] === 1.0 && light[1] === 1.0 && light[2] === 1.0;
-			this.darkArgb = (dark[0] * la | 0) + ((dark[1] * la) << 8)
+			this.darkRgba = (dark[0] * la | 0) + ((dark[1] * la) << 8)
 				+ ((dark[2] * la) << 16) + ((dark[3] * 255) << 24);
-			this.lightArgb = (light[0] * la | 0) + ((light[1] * la) << 8)
+			this.lightRgba = (light[0] * la | 0) + ((light[1] * la) << 8)
 				+ ((light[2] * la) << 16) + ((light[3] * 255) << 24);
 			this._currentUpdateID = this._updateID;
 		}
