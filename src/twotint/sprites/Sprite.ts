@@ -1,5 +1,5 @@
-namespace pixi_color_transform {
-	export class SpriteColored extends PIXI.Sprite {
+namespace pixi_heaven {
+	export class Sprite extends PIXI.Sprite {
 		colorTransform = new ColorTransform();
 
 		get _tintRGB() {

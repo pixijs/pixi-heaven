@@ -1,4 +1,4 @@
-namespace pixi_color_transform {
+namespace pixi_heaven {
 	// export class Text2d extends PIXI.Text {
      //    constructor(text?: string, style?: PIXI.TextStyle, canvas?: HTMLCanvasElement) {
      //        super(text, style, canvas);

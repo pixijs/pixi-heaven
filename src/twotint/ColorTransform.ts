@@ -1,6 +1,4 @@
-namespace pixi_color_transform {
-	import PointLike = PIXI.PointLike;
-
+namespace pixi_heaven {
 	const whiteRgba = [1.0, 1.0, 1.0, 1.0];
 	const blackRgba = [0.0, 0.0, 0.0, 1.0];
 

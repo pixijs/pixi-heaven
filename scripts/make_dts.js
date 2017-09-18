@@ -26,9 +26,9 @@ tmp.file(function (err, filename) {
         var dtsContent = '' + fs.readFileSync(dtsPath);
 
         fs.writeFileSync(
-            path.resolve('dist/pixi-color-transform.d.ts'),
-            dtsContent.replace(/namespace pixi_color_transform/g, 'module PIXI.color_transform')
-                .replace(/pixi_color_transform/g, 'PIXI.color_transform')
+            path.resolve('dist/pixi-sprite-heaven.d.ts'),
+            dtsContent.replace(/namespace pixi_heaven/g, 'module PIXI.heaven')
+                .replace(/pixi_heaven/g, 'PIXI.heaven')
         );
     });
 }, {postfix: '.ts'});

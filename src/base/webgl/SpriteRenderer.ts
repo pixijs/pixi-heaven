@@ -8,7 +8,7 @@ declare module PIXI {
 	}
 }
 
-namespace pixi_color_transform.webgl {
+namespace pixi_heaven.webgl {
 	import BaseTexture = PIXI.BaseTexture;
 	import ObjectRenderer = PIXI.ObjectRenderer;
 	import settings = PIXI.settings;

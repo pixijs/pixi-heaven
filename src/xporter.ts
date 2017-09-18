@@ -1,2 +1,2 @@
 ///<reference types="pixi.js"/>
-(PIXI as any).projection = pixi_projection;
+(PIXI as any).heaven = pixi_heaven;

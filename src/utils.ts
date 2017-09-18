@@ -1,4 +1,4 @@
-namespace pixi_color_transform.utils {
+namespace pixi_heaven.utils {
 	export function createIndicesForQuads(size: number) {
 		// the total number of indices in our array, there are 6 points per quad.
 

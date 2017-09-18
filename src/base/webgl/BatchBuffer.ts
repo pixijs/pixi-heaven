@@ -1,4 +1,4 @@
-namespace pixi_color_transform.webgl {
+namespace pixi_heaven.webgl {
 	export class BatchBuffer {
 		vertices: ArrayBuffer;
 		float32View: Float32Array;

@@ -1,5 +1,5 @@
-namespace pixi_color_transform {
-	import MultiTextureSpriteRenderer = pixi_color_transform.webgl.MultiTextureSpriteRenderer;
+namespace pixi_heaven {
+	import MultiTextureSpriteRenderer = pixi_heaven.webgl.MultiTextureSpriteRenderer;
 
 	class SpriteColoredRenderer extends MultiTextureSpriteRenderer {
 		shaderVert =

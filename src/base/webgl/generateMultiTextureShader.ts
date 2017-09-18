@@ -1,4 +1,4 @@
-namespace pixi_color_transform.webgl {
+namespace pixi_heaven.webgl {
 	export function generateMultiTextureShader(vertexSrc: string, fragmentSrc: string, gl: WebGLRenderingContext, maxTextures: number) {
 		fragmentSrc = fragmentSrc.replace(/%count%/gi, maxTextures + '');
 		fragmentSrc = fragmentSrc.replace(/%forloop%/gi, generateSampleSrc(maxTextures));

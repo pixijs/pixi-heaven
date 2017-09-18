@@ -1,32 +1,32 @@
 declare module PIXI {
     interface Sprite {
-	    convertToColored(): void;
+	    convertToHeaven(): void;
     }
 
     interface Mesh {
-        convertToColored(): void;
+	    convertToHeaven(): void;
     }
 
     interface Graphics {
-        convertToColored(): void;
+	    convertToHeaven(): void;
     }
 
     interface Container {
-	    convertToColored(): void;
-        convertSubtreeToColored(): void;
+	    convertToHeaven(): void;
+        convertSubtreeToHeaven(): void;
     }
 
     // TODO: ParticleContainer?
 }
 
-namespace pixi_color_transform {
-    (PIXI as any).Container.prototype.convertTo2d = function () {
+namespace pixi_heaven {
+    (PIXI as any).Container.prototype.convertToHeaven = function () {
     };
 
-    (PIXI as any).Container.prototype.convertSubtreeTo2d = function () {
-        this.convertTo2d();
+    (PIXI as any).Container.prototype.convertSubtreeToHeaven = function () {
+        this.convertToHeaven();
         for (let i = 0; i < this.children.length; i++) {
-            this.children[i].convertSubtreeTo2d();
+            this.children[i].convertSubtreeToHeaven();
         }
     };
 }

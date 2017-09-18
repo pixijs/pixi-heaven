@@ -1,21 +1,21 @@
 {
-  "name": "pixi-color-transform",
+  "name": "pixi-heaven",
   "version": "0.1.0",
   "description": "PIXI.js advanced color modes and shaders",
   "author": "Ivan Popelyshev",
   "contributors": [
     "Ivan Popelyshev <ivan.popelyshev@gmail.com>"
   ],
-  "main": "./dist/pixi-color-transform.js",
-  "types": "./dist/pixi-color-transform.d.ts",
-  "homepage": "https://github.com/gameofbombs/pixi-color-transform",
+  "main": "./dist/pixi-heaven.js",
+  "types": "./dist/pixi-heaven.d.ts",
+  "homepage": "https://github.com/gameofbombs/pixi-heaven",
   "bugs": {
-    "url": "https://github.com/gameofbombs/pixi-color-transform/issues"
+    "url": "https://github.com/gameofbombs/pixi-heaven/issues"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gameofbombs/pixi-color-transform.git"
+    "url": "https://github.com/gameofbombs/pixi-heaven.git"
   },
   "scripts": {
     "cleanup": "rimraf bin && mkdirp dist",
