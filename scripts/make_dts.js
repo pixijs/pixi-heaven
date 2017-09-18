@@ -26,7 +26,7 @@ tmp.file(function (err, filename) {
         var dtsContent = '' + fs.readFileSync(dtsPath);
 
         fs.writeFileSync(
-            path.resolve('dist/pixi-sprite-heaven.d.ts'),
+            path.resolve('dist/pixi-heaven.d.ts'),
             dtsContent.replace(/namespace pixi_heaven/g, 'module PIXI.heaven')
                 .replace(/pixi_heaven/g, 'PIXI.heaven')
         );

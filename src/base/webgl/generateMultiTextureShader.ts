@@ -33,7 +33,7 @@ namespace pixi_heaven.webgl {
 			}
 
 			src += '\n{';
-			src += `\n\tcolor = texture2D(uSamplers[${i}], textureCoord);`;
+			src += `\n\ttexColor = texture2D(uSamplers[${i}], texCoord);`;
 			src += '\n}';
 		}
 

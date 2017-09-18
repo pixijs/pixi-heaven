@@ -1,7 +1,7 @@
 {
   "name": "pixi-heaven",
   "version": "0.1.0",
-  "description": "PIXI.js advanced color modes and shaders",
+  "description": "PIXI.js advanced color modes, sprites, meshes",
   "author": "Ivan Popelyshev",
   "contributors": [
     "Ivan Popelyshev <ivan.popelyshev@gmail.com>"

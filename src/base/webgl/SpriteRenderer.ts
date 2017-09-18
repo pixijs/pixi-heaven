@@ -18,7 +18,6 @@ namespace pixi_heaven.webgl {
 	import WebGLRenderer = PIXI.WebGLRenderer;
 	import Sprite = PIXI.Sprite;
 
-	import premultiplyTint = PIXI.utils.premultiplyTint;
 	import premultiplyBlendMode = PIXI.utils.premultiplyBlendMode;
 
 	let TICK = 0;
@@ -40,7 +39,7 @@ namespace pixi_heaven.webgl {
 
 		abstract createVao(vertexBuffer: GLBuffer): PIXI.glCore.VertexArrayObject;
 
-		abstract fillVertices(float32View: Float32Array, uint32View: Uint32Array, index: number, sprite: any, argb: number, textureId: number): void;
+		abstract fillVertices(float32View: Float32Array, uint32View: Uint32Array, index: number, sprite: any, textureId: number): void;
 
 		getUniforms(spr: PIXI.Sprite): any {
 			return null;
@@ -273,12 +272,7 @@ namespace pixi_heaven.webgl {
 					}
 				}
 
-				const alpha = Math.min(sprite.worldAlpha, 1.0);
-				// we dont call extra function if alpha is 1.0, that's faster
-				const argb = alpha < 1.0 && nextTexture.premultipliedAlpha ? premultiplyTint(sprite._tintRGB, alpha)
-					: sprite._tintRGB + (alpha * 255 << 24);
-
-				this.fillVertices(float32View, uint32View, index, sprite, argb, nextTexture._virtalBoundId);
+				this.fillVertices(float32View, uint32View, index, sprite, nextTexture._virtalBoundId);
 
 				index += this.vertSize * 4;
 			}

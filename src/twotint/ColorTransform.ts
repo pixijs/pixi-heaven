@@ -115,6 +115,10 @@ namespace pixi_heaven {
 			this.light[2] = 1.0;
 		}
 
+		invalidate() {
+			this._updateID++;
+		}
+
 		updateTransformLocal() {
 			const dark = this.dark, light = this.light;
 			const la = 255 * (1.0 + (light[3] - 1.0) * dark[3]);
