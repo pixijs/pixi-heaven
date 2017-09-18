@@ -1,18 +1,18 @@
 namespace pixi_heaven {
 	export class Sprite extends PIXI.Sprite {
-		colorTransform = new ColorTransform();
+		color = new ColorTransform();
 
 		get _tintRGB() {
-			this.colorTransform.updateTransform();
-			return this.colorTransform.lightArgb & 0xffffff;
+			this.color.updateTransform();
+			return this.color.lightArgb & 0xffffff;
 		}
 
 		get tint() {
-			return this.colorTransform.tintRgb;
+			return this.color.tintRgb;
 		}
 
 		set tint(value: number) {
-			this.colorTransform.tintRgb = value;
+			this.color.tintRgb = value;
 		}
 	}
 }

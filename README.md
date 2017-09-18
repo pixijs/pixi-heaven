@@ -1,8 +1,9 @@
-# pixi-color-transform
+# pixi-heaven
 
-WORK IN PROGRESS, IT IS NOT IN WORKING CONDITION YET
+This is heaven for sprites. Want to color them better? Wanna use advanced colors? Its all here!
 
-Allows to use advanced color modes.
+* Advanced color modes
+* Polygon packing
 
 It can affect performance. 
 Though what is performance, when you game looks like s@#$? 
@@ -11,7 +12,7 @@ Spawn fewer objects but make it prettier!
 Just add ".js" file in your build and start using
 
 ```js
-var sprite = new PIXI.color_transform.SpriteColored();
+var sprite = new PIXI.heaven.Sprite();
 // good old sprite tint
 sprite.color.setLight(0.5, 1.0, 0.5);
 
@@ -31,13 +32,13 @@ var sprite = new PIXI.Sprite(someTexture);
 sprite.tint = 0x80ff80;
 
 // activate the plugin!
-sprite.convertToColored();
+sprite.convertToHeaven();
 ```
 
 Note that if you are using TS, sprite type will be changed
 
 ```ts
-let coloredSprite : PIXI.color_transform.SpriteColored = sprite.convertColors();
+let coloredSprite : PIXI.heaven.Sprite = sprite.convertColors();
 ```
 
 ## Building
@@ -55,7 +56,7 @@ yarn
 yarn build
 ```
 
-That will output the built distributables to `./bin`.
+That will output the built distributables to `./dist`.
 
 [node]:             https://nodejs.org/
 [typescript]:       https://www.typescriptlang.org/
