@@ -57,6 +57,17 @@ sprite.color.setLight(0, 0, 0);
 sprite.color.setDark(1, 1, 1);
 ```
 
+Make whole sprite of one color:
+
+```js
+sprite.tint = 0xffaacc;
+sprite.color.dark[0] = sprite.color.light[0];
+sprite.color.dark[1] = sprite.color.light[1];
+sprite.color.dark[2] = sprite.color.light[2];
+//dont forget to invalidate, after you changed dark DIRECTLY
+sprite.color.invalidate();
+```
+
 ## Building
 
 You will need to have [node][node] setup on your machine.
