@@ -13,6 +13,7 @@ namespace pixi_color_transform {
 
 		darkArgb: number;
 		lightArgb: number;
+		hasNoTint: boolean;
 
 		get darkR() {
 			return this.dark[0];
@@ -94,6 +95,19 @@ namespace pixi_color_transform {
 			this._updateID++;
 		}
 
+		get tintRgb() {
+			const light = this.light;
+			return (light[0] << 16) + (light[1] << 8) + (light[2] | 0);
+		}
+
+		set tintRgb(value: number) {
+			const light = this.light;
+
+			light[0] = (value >> 16) & 0xff;
+			light[1] = (value >> 8) & 0xff;
+			light[2] = value & 0xff;
+		}
+
 		clear() {
 			this.dark[0] = 0.0;
 			this.dark[1] = 0.0;
@@ -105,10 +119,14 @@ namespace pixi_color_transform {
 
 		updateTransformLocal() {
 			const dark = this.dark, light = this.light;
-			this.darkArgb = (dark[0] * 255) + ((dark[1] * 255) << 8)
-				+ ((dark[2] * 255) << 16) + ((dark[3] * 255) << 24);
-			this.lightArgb = (light[0] * 255) + ((light[1] * 255) << 8)
-				+ ((light[2] * 255) << 16) + ((light[3] * 255) << 24);
+			const la = 255 * (1.0 + (light[3] - 1.0) * dark[3]);
+
+			this.hasNoTint = dark[0] === 0.0 && dark[1] === 0.0 && dark[2] === 0.0
+				&& light[0] === 1.0 && light[1] === 1.0 && light[2] === 1.0;
+			this.darkArgb = (dark[0] * la | 0) + ((dark[1] * la) << 8)
+				+ ((dark[2] * la) << 16) + ((dark[3] * 255) << 24);
+			this.lightArgb = (light[0] * la | 0) + ((light[1] * la) << 8)
+				+ ((light[2] * la) << 16) + ((light[3] * 255) << 24);
 			this._currentUpdateID = this._updateID;
 		}
 
