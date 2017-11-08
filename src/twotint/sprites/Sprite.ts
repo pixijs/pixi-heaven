@@ -3,9 +3,11 @@ namespace pixi_heaven {
 
 	export class Sprite extends PIXI.Sprite {
 		color = new ColorTransform();
+		maskMult: PIXI.Sprite = null;
 
 		constructor(texture: PIXI.Texture) {
 			super(texture);
+			this.maskMult = null;
 			this.pluginName = 'spriteHeaven';
 		}
 
