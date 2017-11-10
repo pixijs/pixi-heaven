@@ -1,9 +1,12 @@
 namespace pixi_heaven {
 	import sign = PIXI.utils.sign;
 
+	const tempMat = new PIXI.Matrix();
+
 	export class Sprite extends PIXI.Sprite {
 		color = new ColorTransform();
 		maskMult: PIXI.Sprite = null;
+		maskVertices: Float32Array = null;
 
 		constructor(texture: PIXI.Texture) {
 			super(texture);
@@ -65,6 +68,13 @@ namespace pixi_heaven {
 			if (this._height) {
 				this.scale.y = sign(this.scale.y) * this._height / this._texture.orig.height;
 			}
+		}
+
+		calculateMaskVertices() {
+			//WE HAVE A MASK
+			this.transform.worldTransform.copy(tempMat);
+			tempMat.invert();
+
 		}
 	}
 }
