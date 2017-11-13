@@ -8,6 +8,8 @@ namespace pixi_heaven.webgl {
 
 	let TICK = 0;
 
+	const tempArray = new Float32Array([0, 0, 0, 0]);
+
 	class SpriteMaskedRenderer extends MultiTextureSpriteRenderer {
 		shaderVert =
 			`precision highp float;
@@ -40,11 +42,11 @@ varying vec2 vTextureCoord;
 varying vec4 vLight, vDark;
 varying vec2 vMaskCoord;
 varying vec4 vMaskClamp;
-uniform sampler2D uSampler;
+uniform sampler2D uSamplers[2];
 uniform sampler2D uMask;
 
 void main(void) {
-vec4 texColor = texture2D(uSampler, vTextureCoord);
+vec4 texColor = texture2D(uSamplers[0], vTextureCoord);
 
 float clip = step(3.5,
     step(vMaskClamp.x, vMaskCoord.x) +
@@ -52,7 +54,7 @@ float clip = step(3.5,
     step(vMaskCoord.x, vMaskClamp.z) +
     step(vMaskCoord.y, vMaskClamp.w));
 
-vec4 maskColor = texture2D(uMask, vMaskCoord);
+vec4 maskColor = texture2D(uSamplers[1], vMaskCoord);
 
 vec2 texCoord = vTextureCoord;
 vec4 fragColor;
@@ -63,7 +65,7 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 
 		createVao(vertexBuffer: PIXI.glCore.GLBuffer) {
 			const attrs = this.shader.attributes;
-			this.vertSize = 13;
+			this.vertSize = 11;
 			this.vertByteSize = this.vertSize * 4;
 
 
@@ -75,7 +77,7 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 				.addAttribute(vertexBuffer, attrs.aLight, gl.UNSIGNED_BYTE, true, this.vertByteSize, 3 * 4)
 				.addAttribute(vertexBuffer, attrs.aDark, gl.UNSIGNED_BYTE, true, this.vertByteSize, 4 * 4)
 				.addAttribute(vertexBuffer, attrs.aMaskCoord, gl.FLOAT, false, this.vertByteSize, 5 * 4)
-				.addAttribute(vertexBuffer, attrs.aMaskClamp, gl.FLOAT, false, this.vertByteSize, 9 * 4);
+				.addAttribute(vertexBuffer, attrs.aMaskClamp, gl.FLOAT, false, this.vertByteSize, 7 * 4);
 
 			return vao;
 		}
@@ -92,6 +94,16 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 			const darkRgba = sprite.color.darkRgba;
 			const stride = this.vertSize;
 
+			const mask = sprite.maskSprite;
+			let clamp : any = tempArray;
+			let maskVertexData = tempArray;
+
+			if (mask) {
+				sprite.calculateMaskVertices();
+				clamp = mask._texture.transform.uClampFrame;
+				maskVertexData = sprite.maskVertexData;
+			}
+
 			for (let i = 0; i < n; i++) {
 				float32View[index] = vertexData[i * 2];
 				float32View[index + 1] = vertexData[i * 2 + 1];
@@ -99,14 +111,14 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 				uint32View[index + 3] = lightRgba;
 				uint32View[index + 4] = darkRgba;
 
+				float32View[index + 5] = maskVertexData[i * 2];
+				float32View[index + 6] = maskVertexData[i * 2 + 1];
+				float32View[index + 7] = clamp[0];
+				float32View[index + 8] = clamp[1];
+				float32View[index + 9] = clamp[2];
+				float32View[index + 10] = clamp[3];
 
 				index += stride;
-			}
-
-			if (stride === 6) {
-				for (let i = 0; i < n; i++) {
-					float32View[index + 5] = textureId;
-				}
 			}
 		}
 
@@ -225,7 +237,7 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 
 						currentGroup.textureCount = MAX_TEXTURES;
 						currentGroup.textures[0] = nextTexture;
-						currentGroup.textures[1] = nextMaskTexture;
+						currentGroup.textures[1] = nextMaskTexture || PIXI.Texture.WHITE.baseTexture;
 						textureCount = MAX_TEXTURES;
 					}
 				}
