@@ -539,11 +539,13 @@ var pixi_heaven;
                     texture._glRenderTargets[_this.renderer.CONTEXT_UID].resize(texture.width, texture.height);
                 }
                 glTexture.premultiplyAlpha = texture.premultipliedAlpha;
-                if (!texture.resource) {
-                    glTexture.upload(texture.source);
-                }
-                else if (!texture.resource.onTextureUpload(_this.renderer, texture, glTexture)) {
-                    glTexture.uploadData(null, texture.realWidth, texture.realHeight);
+                if (!isRenderTexture) {
+                    if (!texture.resource) {
+                        glTexture.upload(texture.source);
+                    }
+                    else if (!texture.resource.onTextureUpload(_this.renderer, texture, glTexture)) {
+                        glTexture.uploadData(null, texture.realWidth, texture.realHeight);
+                    }
                 }
                 if (texture.forceUploadStyle) {
                     _this.setStyle(texture, glTexture);

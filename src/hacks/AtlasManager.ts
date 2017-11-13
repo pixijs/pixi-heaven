@@ -33,7 +33,7 @@ module pixi_heaven {
 			const anyThis = this as any;
 
 			const texture: any = (texture_ as any).baseTexture || texture_;
-			const isRenderTexture = !!(texture as any)._glRenderTargets;
+			const isRenderTexture = !!texture._glRenderTargets;
 
 			if (!texture.hasLoaded) {
 				return null;
@@ -91,11 +91,13 @@ module pixi_heaven {
 
 			glTexture.premultiplyAlpha = texture.premultipliedAlpha;
 
-			if (!texture.resource) {
-				glTexture.upload(texture.source);
-			} else if (!texture.resource.onTextureUpload(this.renderer, texture, glTexture)) {
-				glTexture.uploadData(null, texture.realWidth, texture.realHeight);
-			}
+			if (!isRenderTexture) {
+                if (!texture.resource) {
+                    glTexture.upload(texture.source);
+                } else if (!texture.resource.onTextureUpload(this.renderer, texture, glTexture)) {
+                    glTexture.uploadData(null, texture.realWidth, texture.realHeight);
+                }
+            }
 
 			// lets only update what changes..
 			if (texture.forceUploadStyle) {
