@@ -72,6 +72,7 @@ gl_FragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.r
 			const lightRgba = sprite.color.lightRgba;
 			const darkRgba = sprite.color.darkRgba;
 			const stride = this.vertSize;
+			const oldIndex = index;
 
 			for (let i = 0; i < n; i++) {
 				float32View[index] = vertexData[i * 2];
@@ -83,8 +84,10 @@ gl_FragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.r
 			}
 
 			if (stride === 6) {
+				index = oldIndex + 5;
 				for (let i = 0; i < n; i++) {
-					float32View[index + 5] = textureId;
+					float32View[index] = textureId;
+					index += stride;
 				}
 			}
 		}

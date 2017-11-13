@@ -2057,7 +2057,6 @@ var pixi_heaven;
             _this.color = new pixi_heaven.ColorTransform();
             _this.maskSprite = null;
             _this.maskVertexData = null;
-            _this.maskSprite = null;
             _this.pluginName = 'spriteHeaven';
             if (_this.texture.valid)
                 _this._onTextureUpdate();
@@ -2177,6 +2176,7 @@ var pixi_heaven;
             var lightRgba = sprite.color.lightRgba;
             var darkRgba = sprite.color.darkRgba;
             var stride = this.vertSize;
+            var oldIndex = index;
             for (var i = 0; i < n; i++) {
                 float32View[index] = vertexData[i * 2];
                 float32View[index + 1] = vertexData[i * 2 + 1];
@@ -2186,8 +2186,10 @@ var pixi_heaven;
                 index += stride;
             }
             if (stride === 6) {
+                index = oldIndex + 5;
                 for (var i = 0; i < n; i++) {
-                    float32View[index + 5] = textureId;
+                    float32View[index] = textureId;
+                    index += stride;
                 }
             }
         };

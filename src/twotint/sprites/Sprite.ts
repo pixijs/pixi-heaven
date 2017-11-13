@@ -10,7 +10,6 @@ namespace pixi_heaven {
 
 		constructor(texture: PIXI.Texture) {
 			super(texture);
-			this.maskSprite = null;
 			this.pluginName = 'spriteHeaven';
 			if (this.texture.valid) this._onTextureUpdate();
 		}
