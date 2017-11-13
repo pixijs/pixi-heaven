@@ -12,6 +12,7 @@ namespace pixi_heaven {
 			super(texture);
 			this.maskSprite = null;
 			this.pluginName = 'spriteHeaven';
+			if (this.texture.valid) this._onTextureUpdate();
 		}
 
 		get _tintRGB() {
@@ -56,7 +57,9 @@ namespace pixi_heaven {
 			this._textureID = -1;
 			this._textureTrimmedID = -1;
 			this.cachedTint = 0xFFFFFF;
-			this.color.pma = this._texture.baseTexture.premultipliedAlpha;
+			if (this.color) {
+				this.color.pma = this._texture.baseTexture.premultipliedAlpha;
+			}
 
 			// so if _width is 0 then width was not set..
 			if (this._width) {

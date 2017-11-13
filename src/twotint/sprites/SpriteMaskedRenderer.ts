@@ -16,6 +16,7 @@ namespace pixi_heaven.webgl {
 attribute vec2 aVertexPosition;
 attribute vec2 aTextureCoord;
 attribute vec4 aLight, aDark;
+attribute float aTextureId;
 attribute vec2 aMaskCoord;
 attribute vec4 aMaskClamp;
 
@@ -23,6 +24,7 @@ uniform mat3 projectionMatrix;
 
 varying vec2 vTextureCoord;
 varying vec4 vLight, vDark;
+varying float vTextureId;
 varying vec2 vMaskCoord;
 varying vec4 vMaskClamp;
 
@@ -33,6 +35,7 @@ void main(void){
     vTextureCoord = aTextureCoord;
     vLight = aLight;
     vDark = aDark;
+    vTextureId = aTextureId;
     vMaskCoord = aMaskCoord;
     vMaskClamp = aMaskClamp;
 }
@@ -40,6 +43,7 @@ void main(void){
 		shaderFrag = `
 varying vec2 vTextureCoord;
 varying vec4 vLight, vDark;
+varying float vTextureId;
 varying vec2 vMaskCoord;
 varying vec4 vMaskClamp;
 uniform sampler2D uSamplers[2];
@@ -60,12 +64,12 @@ vec2 texCoord = vTextureCoord;
 vec4 fragColor;
 fragColor.a = texColor.a * vLight.a;
 fragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.rgb + texColor.rgb * vLight.rgb;
-gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
+gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.0 - vTextureId);
 }`;
 
 		createVao(vertexBuffer: PIXI.glCore.GLBuffer) {
 			const attrs = this.shader.attributes;
-			this.vertSize = 11;
+			this.vertSize = 12;
 			this.vertByteSize = this.vertSize * 4;
 
 
@@ -76,8 +80,9 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 				.addAttribute(vertexBuffer, attrs.aTextureCoord, gl.UNSIGNED_SHORT, true, this.vertByteSize, 2 * 4)
 				.addAttribute(vertexBuffer, attrs.aLight, gl.UNSIGNED_BYTE, true, this.vertByteSize, 3 * 4)
 				.addAttribute(vertexBuffer, attrs.aDark, gl.UNSIGNED_BYTE, true, this.vertByteSize, 4 * 4)
-				.addAttribute(vertexBuffer, attrs.aMaskCoord, gl.FLOAT, false, this.vertByteSize, 5 * 4)
-				.addAttribute(vertexBuffer, attrs.aMaskClamp, gl.FLOAT, false, this.vertByteSize, 7 * 4);
+				.addAttribute(vertexBuffer, attrs.aTextureId, gl.FLOAT, false, this.vertByteSize, 5 * 4)
+				.addAttribute(vertexBuffer, attrs.aMaskCoord, gl.FLOAT, false, this.vertByteSize, 6 * 4)
+				.addAttribute(vertexBuffer, attrs.aMaskClamp, gl.FLOAT, false, this.vertByteSize, 8 * 4);
 
 			return vao;
 		}
@@ -110,13 +115,14 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 				uint32View[index + 2] = uvs[i];
 				uint32View[index + 3] = lightRgba;
 				uint32View[index + 4] = darkRgba;
+				float32View[index + 5] = mask ? 1 : 0;
 
-				float32View[index + 5] = maskVertexData[i * 2];
-				float32View[index + 6] = maskVertexData[i * 2 + 1];
-				float32View[index + 7] = clamp[0];
-				float32View[index + 8] = clamp[1];
-				float32View[index + 9] = clamp[2];
-				float32View[index + 10] = clamp[3];
+				float32View[index + 6] = maskVertexData[i * 2];
+				float32View[index + 7] = maskVertexData[i * 2 + 1];
+				float32View[index + 8] = clamp[0];
+				float32View[index + 9] = clamp[1];
+				float32View[index + 10] = clamp[2];
+				float32View[index + 11] = clamp[3];
 
 				index += stride;
 			}

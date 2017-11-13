@@ -31,7 +31,7 @@ uniform sampler2D uSampler;
 void main(void)
 {
     vec4 texColor = texture2D(uSampler, vTextureCoord);
-    gl_FragColor.a = texColor.a * vLight.a;
+    gl_FragColor.a = texColor.a * uLight.a;
 	gl_FragColor.rgb = ((texColor.a - 1.0) * uDark.a + 1.0 - texColor.rgb) * uDark.rgb + texColor.rgb * uLight.rgb;
 }
 `;
@@ -49,8 +49,8 @@ void main(void)
     if (coord.x < uClampFrame.x || coord.x > uClampFrame.z
         || coord.y < uClampFrame.y || coord.y > uClampFrame.w)
             discard;
-    coord = texture2D(uSampler, vTextureCoord);
-    gl_FragColor.a = texColor.a * vLight.a;
+    vec4 texColor = texture2D(uSampler, vTextureCoord);
+    gl_FragColor.a = texColor.a * uLight.a;
 	gl_FragColor.rgb = ((texColor.a - 1.0) * uDark.a + 1.0 - texColor.rgb) * uDark.rgb + texColor.rgb * uLight.rgb;
 }
 `;

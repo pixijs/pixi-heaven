@@ -60,6 +60,7 @@ declare module PIXI.heaven.webgl {
         vertexCount: number;
         MAX_TEXTURES: number;
         constructor(renderer: WebGLRenderer);
+        genShader(): void;
         onContextChange(): void;
         onPrerender(): void;
         render(sprite: Sprite): void;
@@ -154,6 +155,11 @@ declare module PIXI {
     }
 }
 declare module PIXI.heaven {
+}
+declare module PIXI {
+    namespace GroupD8 {
+        function isVertical(rotation: number): boolean;
+    }
 }
 declare module PIXI {
     interface BaseTexture {
@@ -303,6 +309,17 @@ declare module PIXI.heaven.mesh {
         set(x: number, y: number, offset?: number, scale?: number): void;
     }
 }
+declare module PIXI.heaven.mesh {
+    class MeshHeavenRenderer extends PIXI.ObjectRenderer {
+        static vert: string;
+        static frag: string;
+        static fragTrim: string;
+        shader: PIXI.Shader;
+        shaderTrim: PIXI.Shader;
+        onContextChange(): void;
+        render(mesh: Mesh): void;
+    }
+}
 declare module PIXI.heaven {
     interface IAtlasOptions {
         width?: number;
@@ -404,17 +421,6 @@ declare module PIXI.heaven {
         updateTransform(): void;
     }
 }
-declare module PIXI.heaven.mesh {
-    class MeshHeavenRenderer extends PIXI.ObjectRenderer {
-        static vert: string;
-        static frag: string;
-        static fragTrim: string;
-        shader: PIXI.Shader;
-        shaderTrim: PIXI.Shader;
-        onContextChange(): void;
-        render(mesh: Mesh): void;
-    }
-}
 declare module PIXI {
     interface Sprite {
         convertToHeaven(): PIXI.heaven.Sprite;
@@ -435,14 +441,19 @@ declare module PIXI.heaven {
 declare module PIXI.heaven {
     class Sprite extends PIXI.Sprite {
         color: ColorTransform;
+        maskSprite: PIXI.Sprite;
+        maskVertexData: Float32Array;
         constructor(texture: PIXI.Texture);
         _tintRGB: number;
         tint: number;
         updateTransform(): void;
         _onTextureUpdate(): void;
+        calculateMaskVertices(): void;
     }
 }
 declare module PIXI.heaven {
+}
+declare module PIXI.heaven.webgl {
 }
 declare module PIXI.heaven {
     class SpriteModel {
@@ -455,4 +466,18 @@ declare module PIXI.heaven.utils {
     function isPow2(v: number): boolean;
     function nextPow2(v: number): number;
     function log2(v: number): number;
+}
+declare module PIXI.heaven.spine {
+    class Spine extends PIXI.spine.Spine {
+        hasSpriteMask: boolean;
+        color: ColorTransform;
+        constructor(spineData: PIXI.spine.core.SkeletonData);
+        newSprite(tex: PIXI.Texture): any;
+    }
+    class SpineSprite extends Sprite {
+        region: PIXI.spine.core.TextureRegion;
+        spine: Spine;
+        constructor(tex: PIXI.Texture, spine: Spine);
+        _renderWebGL(renderer: PIXI.WebGLRenderer): void;
+    }
 }

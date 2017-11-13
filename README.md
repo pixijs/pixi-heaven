@@ -2,6 +2,8 @@
 
 This is heaven for sprites. Want to color them better? Wanna use advanced colors? Its all here!
 
+**REQUIRES** [pixi-spine](https://github.com/pixijs/pixi-spine). That means you have to include spine before heaven.
+
 Done:
 
 * Advanced color modes
@@ -67,6 +69,31 @@ sprite.color.dark[2] = sprite.color.light[2];
 //dont forget to invalidate, after you changed dark DIRECTLY
 sprite.color.invalidate();
 ```
+
+### How to use with spine
+
+This plugin enables light-dark tint of spine 3.6.
+
+Dark-light tint works like in sprites.
+
+```js
+spine = new PIXI.heaven.spine.Spine();
+spine.color.setLight(0.5, 1.0, 0.5);
+spine.color.setDark(0.2, 0.2, 0.2);
+```
+
+### How to mask sprites with sprites
+
+Plugin adds special renderer that has faster masks than just `sprite.mask`
+
+```js
+sprite = new PIXI.heaven.Sprite();
+sprite.maskSprite = sprite2; //set it
+sprite.pluginName = 'spriteMasked'; //enable special plugin rendering
+sprite2.renderable = false; //turn off rendering
+```
+
+Batching works with spine, just enable maskSprite in any sprite of spine instance.
 
 ## Building
 
