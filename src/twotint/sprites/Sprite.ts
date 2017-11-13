@@ -6,7 +6,7 @@ namespace pixi_heaven {
 	export class Sprite extends PIXI.Sprite {
 		color = new ColorTransform();
 		maskMult: PIXI.Sprite = null;
-		maskVertices: Float32Array = null;
+		maskVertexData: Float32Array = null;
 
 		constructor(texture: PIXI.Texture) {
 			super(texture);
@@ -43,12 +43,10 @@ namespace pixi_heaven {
 				this.color.updateTransform();
 			}
 
-			for (let i = 0, j = this.children.length; i < j; ++i)
-			{
+			for (let i = 0, j = this.children.length; i < j; ++i) {
 				const child = this.children[i];
 
-				if (child.visible)
-				{
+				if (child.visible) {
 					child.updateTransform();
 				}
 			}
@@ -72,9 +70,39 @@ namespace pixi_heaven {
 
 		calculateMaskVertices() {
 			//WE HAVE A MASK
-			this.transform.worldTransform.copy(tempMat);
-			tempMat.invert();
+			const maskSprite = this.mask as PIXI.Sprite;
+			const tex = maskSprite.texture;
+			const orig = tex.orig;
+			const anchor = maskSprite.anchor;
 
+			if (!tex.valid) {
+				return;
+			}
+			if (!tex.transform) {
+				// margin = 0.0, let it bleed a bit, shader code becomes easier
+				// assuming that atlas textures were made with 1-pixel padding
+				tex.transform = new (PIXI as any).TextureMatrix(tex, 0.0);
+			}
+			tex.transform.update();
+
+			//same operations as in SpriteMaskFilter
+			maskSprite.transform.worldTransform.copy(tempMat);
+			tempMat.invert();
+			tempMat.scale(1.0 / orig.width, 1.0 / orig.height);
+			tempMat.translate(anchor.x, anchor.y);
+			tempMat.prepend(tex.transform.mapCoord);
+
+			if (!this.maskVertexData) {
+				this.maskVertexData = new Float32Array(8);
+			}
+
+			const vertexData = this.vertexData;
+			const maskVertexData = this.maskVertexData;
+
+			for (let i = 0; i < 8; i += 2) {
+				maskVertexData[i] = vertexData[i] * tempMat.a + vertexData[i + 1] * tempMat.c + tempMat.tx;
+				maskVertexData[i + 1] = vertexData[i] * tempMat.b + vertexData[i + 1] * tempMat.d + tempMat.ty;
+			}
 		}
 	}
 }

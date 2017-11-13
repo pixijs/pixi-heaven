@@ -70,6 +70,315 @@ declare module PIXI.heaven.webgl {
     }
 }
 declare module PIXI.heaven {
+    import Rectangle = PIXI.Rectangle;
+    class AtlasNode<T> {
+        childs: Array<AtlasNode<T>>;
+        rect: Rectangle;
+        data: T;
+        insert(atlasWidth: number, atlasHeight: number, width: number, height: number, data: T): AtlasNode<T>;
+    }
+}
+declare module PIXI.heaven {
+}
+declare module PIXI.heaven {
+    import BaseTexture = PIXI.BaseTexture;
+    import Texture = PIXI.Texture;
+    import WebGLRenderer = PIXI.WebGLRenderer;
+    class AtlasEntry {
+        baseTexture: BaseTexture;
+        atlas: IAtlas;
+        currentNode: AtlasNode<AtlasEntry>;
+        currentAtlas: SuperAtlas;
+        width: number;
+        height: number;
+        nodeUpdateID: number;
+        regions: Array<TextureRegion>;
+        constructor(atlas: IAtlas, baseTexture: BaseTexture);
+    }
+    interface IRepackResult {
+        failed: Array<AtlasEntry>;
+        apply(): void;
+    }
+    interface IAtlas {
+        add(texture: BaseTexture | Texture, swapCache?: boolean): TextureRegion;
+        addHash(textures: {
+            [key: string]: Texture;
+        }, swapCache?: boolean): {
+            [key: string]: TextureRegion;
+        };
+        repack(): IRepackResult;
+        prepare(renderer: WebGLRenderer): Promise<void>;
+    }
+}
+declare module PIXI.heaven {
+    import Texture = PIXI.Texture;
+    class TextureRegion extends PIXI.Texture {
+        uid: number;
+        proxied: Texture;
+        entry: AtlasEntry;
+        constructor(entry: AtlasEntry, texture?: PIXI.Texture);
+        updateFrame(): void;
+    }
+}
+declare module PIXI.heaven {
+    interface ITextureResource {
+        onTextureUpload(renderer: PIXI.WebGLRenderer, baseTexture: PIXI.BaseTexture, glTexture: PIXI.glCore.GLTexture): boolean;
+        onTextureTag?(baseTexture: PIXI.BaseTexture): void;
+        onTextureNew?(baseTexture: PIXI.BaseTexture): void;
+        onTextureDestroy?(baseTexture: PIXI.BaseTexture): boolean;
+    }
+}
+declare module PIXI.heaven {
+    class AtlasManager {
+        renderer: PIXI.WebGLRenderer;
+        gl: WebGLRenderingContext;
+        constructor(renderer: PIXI.WebGLRenderer);
+        onContextChange: (gl: WebGLRenderingContext) => void;
+        updateTexture: (texture_: PIXI.BaseTexture | PIXI.Texture, location?: number) => any;
+        setStyle(texture: PIXI.BaseTexture, glTexture: PIXI.glCore.GLTexture): void;
+        destroy(): void;
+    }
+}
+declare module PIXI {
+    interface BaseTexture {
+        uid: number;
+        _updateID: number;
+        _mips: Array<ImageData>;
+        resource: PIXI.heaven.ITextureResource;
+        forceUploadStyle: boolean;
+        generateMips(levels: number): void;
+    }
+    interface BaseRenderTexture {
+        uid: number;
+        generateMips(levels: number): void;
+    }
+}
+declare module PIXI.heaven {
+}
+declare module PIXI {
+    interface BaseTexture {
+        uid: number;
+        _updateID: number;
+        resource: PIXI.heaven.ITextureResource;
+        forceUploadStyle: boolean;
+    }
+    interface BaseRenderTexture {
+        uid: number;
+    }
+}
+declare module PIXI.glCore {
+    interface GLTexture {
+        _updateID: number;
+    }
+}
+declare module PIXI.heaven {
+}
+declare module PIXI.loaders {
+    interface Resource {
+        spritesheet?: PIXI.Spritesheet;
+    }
+}
+declare module PIXI.heaven {
+    import Resource = PIXI.loaders.Resource;
+    function atlasChecker(): (resource: Resource, next: () => any) => any;
+}
+declare module PIXI.heaven.mesh {
+    class Mesh extends PIXI.Container {
+        _texture: PIXI.Texture;
+        uvs: Float32Array;
+        vertices: Float32Array;
+        indices: Uint16Array;
+        drawMode: number;
+        dirty: number;
+        indexDirty: number;
+        blendMode: number;
+        canvasPadding: number;
+        tintRgb: Float32Array;
+        _glDatas: {
+            [key: number]: any;
+        };
+        uploadUvTransform: boolean;
+        pluginName: string;
+        _uvTransform: PIXI.extras.TextureTransform;
+        constructor(texture?: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number);
+        updateTransform(): void;
+        _renderWebGL(renderer: PIXI.WebGLRenderer): void;
+        _renderCanvas(renderer: PIXI.CanvasRenderer): void;
+        _onTextureUpdate(): void;
+        multiplyUvs(): void;
+        refresh(forceUpdate?: boolean): void;
+        _refreshUvs(): void;
+        _calculateBounds(): void;
+        containsPoint(point: PIXI.PointLike): boolean;
+        texture: PIXI.Texture;
+        color: ColorTransform;
+        tint: number;
+        static DRAW_MODES: {
+            TRIANGLE_MESH: number;
+            TRIANGLES: number;
+        };
+    }
+}
+declare module PIXI.heaven.mesh {
+    class Plane extends Mesh {
+        _verticesX: number;
+        _verticesY: number;
+        _direction: number;
+        _lastWidth: number;
+        _lastHeight: number;
+        _width: number;
+        _height: number;
+        _dimensionsID: number;
+        _lastDimensionsID: number;
+        _verticesID: number;
+        _lastVerticesID: number;
+        _uvsID: number;
+        _lastUvsID: number;
+        _anchor: PIXI.ObservablePoint;
+        autoResetVertices: boolean;
+        calculatedVertices: Float32Array;
+        constructor(texture: PIXI.Texture, verticesX?: number, verticesY?: number, direction?: number);
+        verticesX: number;
+        verticesY: number;
+        direction: number;
+        width: number;
+        height: number;
+        anchor: PIXI.ObservablePoint;
+        _onAnchorUpdate(): void;
+        invalidateVertices(): void;
+        invalidateUvs(): void;
+        invalidate(): void;
+        refresh(forceUpdate?: boolean): void;
+        refreshDimensions(forceUpdate?: boolean): void;
+        refreshVertices(forceUpdate?: boolean): void;
+        _refreshUvs(): void;
+        calcVertices(): void;
+        _refreshVertices(): void;
+        reset(): void;
+    }
+}
+declare module PIXI.heaven.mesh {
+    class NineSlicePlane extends Plane {
+        _leftWidth: number;
+        _rightWidth: number;
+        _topHeight: number;
+        _bottomHeight: number;
+        constructor(texture: PIXI.Texture, leftWidth?: number, topHeight?: number, rightWidth?: number, bottomHeight?: number);
+        leftWidth: number;
+        rightWidth: number;
+        topHeight: number;
+        bottomHeight: number;
+        _refreshVertices(): void;
+        _refreshUvs(): void;
+        updateHorizontalVertices(): void;
+        updateVerticalVertices(): void;
+        _renderCanvas(renderer: PIXI.CanvasRenderer): void;
+        drawSegment(context: CanvasRenderingContext2D, textureSource: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement, w: number, h: number, x1: number, y1: number, x2: number, y2: number): void;
+    }
+}
+declare module PIXI.heaven.mesh {
+    class Rope extends Plane {
+        points: Array<RopePoint>;
+        calculatedPoints: Array<RopePoint>;
+        autoUpdate: boolean;
+        constructor(texture: PIXI.Texture, verticesX: Array<RopePoint> | number, verticesY?: number, direction?: number);
+        updateTransform(): void;
+        _onAnchorUpdate(): void;
+        _checkPointsLen(): void;
+        refresh(forceUpdate?: boolean): void;
+        calcPoints(): void;
+        resetPoints(): void;
+        resetOffsets(): void;
+        reset(): void;
+        calcVertices(): void;
+    }
+}
+declare module PIXI.heaven.mesh {
+    class RopePoint extends PIXI.Point {
+        offset: number;
+        scale: number;
+        constructor(x?: number, y?: number, offset?: number, scale?: number);
+        clone(): RopePoint;
+        copy(p: PIXI.Point | RopePoint): void;
+        set(x: number, y: number, offset?: number, scale?: number): void;
+    }
+}
+declare module PIXI.heaven {
+    interface IAtlasOptions {
+        width?: number;
+        height?: number;
+        loadFactor?: number;
+        repackBeforeResize?: boolean;
+        repackAfterResize?: boolean;
+        algoTreeResize?: boolean;
+        maxSize?: number;
+        format?: number;
+        hasAllFields?: boolean;
+        mipLevels?: number;
+        padding?: number;
+    }
+    class AtlasOptions implements IAtlasOptions {
+        width: number;
+        height: number;
+        loadFactor: number;
+        repackBeforeResize: boolean;
+        repackAfterResize: boolean;
+        algoTreeResize: boolean;
+        maxSize: number;
+        mipLevels: number;
+        padding: number;
+        format: number;
+        static MAX_SIZE: number;
+        constructor(src: IAtlasOptions);
+        assign(src: IAtlasOptions): this;
+    }
+}
+declare module PIXI.heaven {
+    import BaseTexture = PIXI.BaseTexture;
+    class SuperAtlasEntry {
+        baseTexture: BaseTexture;
+        superAtlas: SuperAtlas;
+    }
+    class AtlasTree implements IRepackResult {
+        failed: Array<AtlasEntry>;
+        root: AtlasNode<AtlasEntry>;
+        good: Array<AtlasEntry>;
+        hash: {
+            [key: number]: AtlasNode<AtlasEntry>;
+        };
+        apply(): void;
+    }
+    class SuperAtlas implements ITextureResource, IAtlas {
+        static MAX_SIZE: number;
+        baseTexture: PIXI.BaseTexture;
+        format: number;
+        width: number;
+        height: number;
+        options: AtlasOptions;
+        all: {
+            [key: number]: AtlasEntry;
+        };
+        tree: AtlasTree;
+        onTextureNew(baseTexture: PIXI.BaseTexture): void;
+        static create(options: IAtlasOptions): SuperAtlas;
+        destroy(): void;
+        add(texture: BaseTexture | PIXI.Texture, swapCache?: boolean): TextureRegion;
+        addHash(textures: {
+            [key: string]: PIXI.Texture;
+        }, swapCache?: boolean): {
+            [key: string]: TextureRegion;
+        };
+        insert(entry: AtlasEntry): void;
+        remove(entry: AtlasEntry): void;
+        tryInsert(entry: AtlasEntry): boolean;
+        private createAtlasRoot();
+        repack(failOnFirst?: boolean): IRepackResult;
+        prepare(renderer: PIXI.WebGLRenderer): Promise<void>;
+        imageTextureRebuildUpdateID: number;
+        onTextureUpload(renderer: PIXI.WebGLRenderer, baseTexture: PIXI.BaseTexture, tex: PIXI.glCore.GLTexture): boolean;
+    }
+}
+declare module PIXI.heaven {
     class ColorTransform {
         dark: Float32Array;
         light: Float32Array;
@@ -93,6 +402,17 @@ declare module PIXI.heaven {
         invalidate(): void;
         updateTransformLocal(): void;
         updateTransform(): void;
+    }
+}
+declare module PIXI.heaven.mesh {
+    class MeshHeavenRenderer extends PIXI.ObjectRenderer {
+        static vert: string;
+        static frag: string;
+        static fragTrim: string;
+        shader: PIXI.Shader;
+        shaderTrim: PIXI.Shader;
+        onContextChange(): void;
+        render(mesh: Mesh): void;
     }
 }
 declare module PIXI {

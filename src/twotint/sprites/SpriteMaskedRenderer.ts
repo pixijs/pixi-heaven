@@ -1,6 +1,13 @@
 namespace pixi_heaven {
 	import MultiTextureSpriteRenderer = pixi_heaven.webgl.MultiTextureSpriteRenderer;
 
+	import BaseTexture = PIXI.BaseTexture;
+	import GLBuffer = PIXI.glCore.GLBuffer;
+	import settings = PIXI.settings;
+	import premultiplyBlendMode = PIXI.utils.premultiplyBlendMode;
+
+	let TICK = 0;
+
 	class SpriteMaskedRenderer extends MultiTextureSpriteRenderer {
 		shaderVert =
 			`precision highp float;
@@ -103,6 +110,173 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 					float32View[index + 5] = textureId;
 				}
 			}
+		}
+
+		/**
+		 * We need different flush for mask strategy
+		 * Renders the content and empties the current batch.
+		 *
+		 */
+		flush() {
+			if (this.currentIndex === 0) {
+				return;
+			}
+
+			const gl = this.renderer.gl;
+			const MAX_TEXTURES = this.MAX_TEXTURES;
+
+			const np2 = utils.nextPow2(this.currentIndex);
+			const log2 = utils.log2(np2);
+			const buffer = this.buffers[log2];
+
+			const sprites = this.sprites;
+			const groups = this.groups;
+
+			const float32View = buffer.float32View;
+			const uint32View = buffer.uint32View;
+
+			// const touch = 0;// this.renderer.textureGC.count;
+
+			let index = 0;
+			let nextTexture: any;
+			let currentTexture: BaseTexture;
+			let currentUniforms: any = null;
+			let groupCount = 1;
+			let textureCount = 0;
+			let currentGroup = groups[0];
+			let vertexData;
+			let uvs;
+			let blendMode = premultiplyBlendMode[
+				(sprites[0] as any)._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
+
+			currentGroup.textureCount = 0;
+			currentGroup.start = 0;
+			currentGroup.blend = blendMode;
+
+			TICK++;
+
+			let i;
+
+			for (i = 0; i < this.currentIndex; ++i) {
+				// upload the sprite elemetns...
+				// they have all ready been calculated so we just need to push them into the buffer.
+
+				// upload the sprite elemetns...
+				// they have all ready been calculated so we just need to push them into the buffer.
+				const sprite = sprites[i] as any;
+
+				nextTexture = sprite._texture.baseTexture;
+
+				const spriteBlendMode = premultiplyBlendMode[Number(nextTexture.premultipliedAlpha)][sprite.blendMode];
+
+				if (blendMode !== spriteBlendMode) {
+					// finish a group..
+					blendMode = spriteBlendMode;
+
+					// force the batch to break!
+					currentTexture = null;
+					textureCount = MAX_TEXTURES;
+					TICK++;
+				}
+
+				const uniforms = this.getUniforms(sprite);
+				if (currentUniforms !== uniforms) {
+					currentUniforms = uniforms;
+
+					currentTexture = null;
+					textureCount = MAX_TEXTURES;
+					TICK++;
+				}
+
+				if (currentTexture !== nextTexture) {
+					currentTexture = nextTexture;
+
+					if (nextTexture._enabled !== TICK) {
+						if (textureCount === MAX_TEXTURES) {
+							TICK++;
+
+							textureCount = 0;
+
+							currentGroup.size = i - currentGroup.start;
+
+							currentGroup = groups[groupCount++];
+							currentGroup.textureCount = 0;
+							currentGroup.blend = blendMode;
+							currentGroup.start = i;
+							currentGroup.uniforms = currentUniforms;
+						}
+
+						nextTexture._enabled = TICK;
+						nextTexture._virtalBoundId = textureCount;
+
+						currentGroup.textures[currentGroup.textureCount++] = nextTexture;
+						textureCount++;
+					}
+				}
+
+				this.fillVertices(float32View, uint32View, index, sprite, nextTexture._virtalBoundId);
+
+				index += this.vertSize * 4;
+			}
+
+			currentGroup.size = i - currentGroup.start;
+
+			if (!settings.CAN_UPLOAD_SAME_BUFFER) {
+				// this is still needed for IOS performance..
+				// it really does not like uploading to the same buffer in a single frame!
+				if (this.vaoMax <= this.vertexCount) {
+					this.vaoMax++;
+
+					const attrs = this.shader.attributes;
+
+					/* eslint-disable max-len */
+					const vertexBuffer = this.vertexBuffers[this.vertexCount] = GLBuffer.createVertexBuffer(gl, null, gl.STREAM_DRAW);
+					/* eslint-enable max-len */
+
+					this.vaos[this.vertexCount] = this.createVao(vertexBuffer);
+				}
+
+				this.renderer.bindVao(this.vaos[this.vertexCount]);
+
+				this.vertexBuffers[this.vertexCount].upload(buffer.vertices, 0, false);
+
+				this.vertexCount++;
+			}
+			else {
+				// lets use the faster option, always use buffer number 0
+				this.vertexBuffers[this.vertexCount].upload(buffer.vertices, 0, true);
+			}
+
+			currentUniforms = null;
+
+			// / render the groups..
+			for (i = 0; i < groupCount; i++) {
+				const group = groups[i];
+				const groupTextureCount = group.textureCount;
+
+				if (group.uniforms !== currentUniforms) {
+					this.syncUniforms(group.uniforms);
+				}
+
+				for (let j = 0; j < groupTextureCount; j++) {
+					this.renderer.bindTexture(group.textures[j], j, true);
+
+					const v = this.shader.uniforms.samplerSize;
+					if (v) {
+						v[0] = group.textures[j].realWidth;
+						v[1] = group.textures[j].realHeight;
+						this.shader.uniforms.samplerSize = v;
+					}
+				}
+
+				// set the blend mode..
+				this.renderer.state.setBlendMode(group.blend);
+
+				gl.drawElements(gl.TRIANGLES, group.size * 6, gl.UNSIGNED_SHORT, group.start * 6 * 2);
+			}
+
+			// reset elements for the next flush
+			this.currentIndex = 0;
 		}
 	}
 

@@ -1,5 +1,33 @@
 var pixi_heaven;
 (function (pixi_heaven) {
+    var Resource = PIXI.loaders.Resource;
+    function atlasChecker() {
+        return function (resource, next) {
+            var atlas = resource.metadata.runtimeAtlas;
+            if (!atlas) {
+                return next();
+            }
+            if (resource.type === Resource.TYPE.IMAGE) {
+                if (resource.texture) {
+                    resource.texture = atlas.add(resource.texture, true);
+                }
+                return next();
+            }
+            if (resource.type === Resource.TYPE.JSON &&
+                resource.spritesheet) {
+                resource.spritesheet.textures = atlas.addHash(resource.spritesheet.textures, true);
+                resource.textures = resource.spritesheet.textures;
+                return next();
+            }
+            next();
+        };
+    }
+    pixi_heaven.atlasChecker = atlasChecker;
+    PIXI.loaders.Loader.addPixiMiddleware(atlasChecker);
+    PIXI.loader.use(atlasChecker());
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
     var utils;
     (function (utils) {
         function createIndicesForQuads(size) {
@@ -357,6 +385,1346 @@ var pixi_heaven;
 })(pixi_heaven || (pixi_heaven = {}));
 var pixi_heaven;
 (function (pixi_heaven) {
+    var Rectangle = PIXI.Rectangle;
+    var INF = 1 << 20;
+    var AtlasNode = (function () {
+        function AtlasNode() {
+            this.childs = [];
+            this.rect = new Rectangle(0, 0, INF, INF);
+            this.data = null;
+        }
+        AtlasNode.prototype.insert = function (atlasWidth, atlasHeight, width, height, data) {
+            if (this.childs.length > 0) {
+                var newNode = this.childs[0].insert(atlasWidth, atlasHeight, width, height, data);
+                if (newNode != null) {
+                    return newNode;
+                }
+                return this.childs[1].insert(atlasWidth, atlasHeight, width, height, data);
+            }
+            else {
+                var rect = this.rect;
+                if (this.data != null)
+                    return null;
+                var w = Math.min(rect.width, atlasWidth - rect.x);
+                if (width > rect.width ||
+                    width > atlasWidth - rect.x ||
+                    height > rect.height ||
+                    height > atlasHeight - rect.y)
+                    return null;
+                if (width == rect.width && height == rect.height) {
+                    this.data = data;
+                    return this;
+                }
+                this.childs.push(new AtlasNode());
+                this.childs.push(new AtlasNode());
+                var dw = rect.width - width;
+                var dh = rect.height - height;
+                if (dw > dh) {
+                    this.childs[0].rect = new Rectangle(rect.x, rect.y, width, rect.height);
+                    this.childs[1].rect = new Rectangle(rect.x + width, rect.y, rect.width - width, rect.height);
+                }
+                else {
+                    this.childs[0].rect = new Rectangle(rect.x, rect.y, rect.width, height);
+                    this.childs[1].rect = new Rectangle(rect.x, rect.y + height, rect.width, rect.height - height);
+                }
+                return this.childs[0].insert(atlasWidth, atlasHeight, width, height, data);
+            }
+        };
+        return AtlasNode;
+    }());
+    pixi_heaven.AtlasNode = AtlasNode;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var AtlasEntry = (function () {
+        function AtlasEntry(atlas, baseTexture) {
+            this.nodeUpdateID = 0;
+            this.regions = [];
+            this.baseTexture = baseTexture;
+            this.width = baseTexture.width;
+            this.height = baseTexture.height;
+            this.atlas = atlas;
+        }
+        return AtlasEntry;
+    }());
+    pixi_heaven.AtlasEntry = AtlasEntry;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var Texture = PIXI.Texture;
+    var Rectangle = PIXI.Rectangle;
+    var TextureRegion = (function (_super) {
+        __extends(TextureRegion, _super);
+        function TextureRegion(entry, texture) {
+            if (texture === void 0) { texture = new Texture(entry.baseTexture); }
+            var _this = _super.call(this, entry.currentAtlas ? entry.currentAtlas.baseTexture : texture.baseTexture, entry.currentNode ? new Rectangle(texture.frame.x + entry.currentNode.rect.x, texture.frame.y + entry.currentNode.rect.y, texture.frame.width, texture.frame.height) : texture.frame.clone(), texture.orig, texture.trim, texture.rotate) || this;
+            _this.uid = PIXI.utils.uid();
+            _this.proxied = texture;
+            _this.entry = entry;
+            return _this;
+        }
+        TextureRegion.prototype.updateFrame = function () {
+            var texture = this.proxied;
+            var entry = this.entry;
+            var frame = this._frame;
+            if (entry.currentNode) {
+                this.baseTexture = entry.currentAtlas.baseTexture;
+                frame.x = texture.frame.x + entry.currentNode.rect.x;
+                frame.y = texture.frame.y + entry.currentNode.rect.y;
+            }
+            else {
+                this.baseTexture = texture.baseTexture;
+                frame.x = texture.frame.x;
+                frame.y = texture.frame.y;
+            }
+            frame.width = texture.frame.width;
+            frame.height = texture.frame.height;
+            this._updateUvs();
+        };
+        return TextureRegion;
+    }(PIXI.Texture));
+    pixi_heaven.TextureRegion = TextureRegion;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var AtlasManager = (function () {
+        function AtlasManager(renderer) {
+            var _this = this;
+            this.onContextChange = function (gl) {
+                _this.gl = gl;
+                _this.renderer.textureManager.updateTexture = _this.updateTexture;
+            };
+            this.updateTexture = function (texture_, location) {
+                var tm = _this.renderer.textureManager;
+                var gl = _this.gl;
+                var anyThis = _this;
+                var texture = texture_.baseTexture || texture_;
+                var isRenderTexture = !!texture._glRenderTargets;
+                if (!texture.hasLoaded) {
+                    return null;
+                }
+                var boundTextures = _this.renderer.boundTextures;
+                if (location === undefined) {
+                    location = 0;
+                    for (var i = 0; i < boundTextures.length; ++i) {
+                        if (boundTextures[i] === texture) {
+                            location = i;
+                            break;
+                        }
+                    }
+                }
+                boundTextures[location] = texture;
+                gl.activeTexture(gl.TEXTURE0 + location);
+                var glTexture = texture._glTextures[_this.renderer.CONTEXT_UID];
+                if (!glTexture) {
+                    if (isRenderTexture) {
+                        var renderTarget = new PIXI.RenderTarget(_this.gl, texture.width, texture.height, texture.scaleMode, texture.resolution);
+                        renderTarget.resize(texture.width, texture.height);
+                        texture._glRenderTargets[_this.renderer.CONTEXT_UID] = renderTarget;
+                        glTexture = renderTarget.texture;
+                    }
+                    else {
+                        glTexture = new PIXI.glCore.GLTexture(_this.gl, null, null, null, null);
+                        glTexture.bind(location);
+                    }
+                    texture._glTextures[_this.renderer.CONTEXT_UID] = glTexture;
+                    texture.on('update', tm.updateTexture, tm);
+                    texture.on('dispose', tm.destroyTexture, tm);
+                }
+                else if (isRenderTexture) {
+                    texture._glRenderTargets[_this.renderer.CONTEXT_UID].resize(texture.width, texture.height);
+                }
+                glTexture.premultiplyAlpha = texture.premultipliedAlpha;
+                if (!texture.resource) {
+                    glTexture.upload(texture.source);
+                }
+                else if (!texture.resource.onTextureUpload(_this.renderer, texture, glTexture)) {
+                    glTexture.uploadData(null, texture.realWidth, texture.realHeight);
+                }
+                if (texture.forceUploadStyle) {
+                    _this.setStyle(texture, glTexture);
+                }
+                glTexture._updateID = texture._updateID;
+                return glTexture;
+            };
+            this.renderer = renderer;
+            renderer.on('context', this.onContextChange);
+        }
+        AtlasManager.prototype.setStyle = function (texture, glTexture) {
+            var gl = this.gl;
+            if (texture.isPowerOfTwo) {
+                if (texture.mipmap) {
+                    glTexture.enableMipmap();
+                }
+                if (texture.wrapMode === PIXI.WRAP_MODES.CLAMP) {
+                    glTexture.enableWrapClamp();
+                }
+                else if (texture.wrapMode === PIXI.WRAP_MODES.REPEAT) {
+                    glTexture.enableWrapRepeat();
+                }
+                else {
+                    glTexture.enableWrapMirrorRepeat();
+                }
+            }
+            else {
+                glTexture.enableWrapClamp();
+            }
+            if (texture.scaleMode === PIXI.SCALE_MODES.NEAREST) {
+                glTexture.enableNearestScaling();
+            }
+            else {
+                glTexture.enableLinearScaling();
+            }
+        };
+        AtlasManager.prototype.destroy = function () {
+            this.renderer.off('context', this.onContextChange);
+        };
+        return AtlasManager;
+    }());
+    pixi_heaven.AtlasManager = AtlasManager;
+    PIXI.WebGLRenderer.registerPlugin('atlas', AtlasManager);
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    PIXI.BaseTexture.prototype._updateID = 0;
+    PIXI.BaseTexture.prototype.resource = null;
+    PIXI.BaseTexture.prototype.forceUploadStyle = true;
+    var tmpCanvas;
+    PIXI.BaseTexture.prototype.generateMips = function (levels) {
+        if (!levels)
+            return;
+        var src = this.source;
+        if (!tmpCanvas)
+            tmpCanvas = document.createElement("canvas");
+        var sw = ((src.width + 1) >> 1) << 1;
+        var h = src.height;
+        var sh = 0;
+        for (var i = 1; i <= levels; i++) {
+            sh += h;
+            h = (h + 1) >> 1;
+        }
+        if (tmpCanvas.width < sw) {
+            tmpCanvas.width = sw;
+        }
+        if (tmpCanvas.height < sh) {
+            tmpCanvas.height = sh;
+        }
+        var context = tmpCanvas.getContext("2d");
+        context.clearRect(0, 0, sw, sh);
+        this._mips = [];
+        var w = src.width;
+        h = src.height;
+        context.drawImage(src, 0, 0, w, h, 0, 0, w / 2, h / 2);
+        var h1 = 0;
+        for (var i = 1; i <= levels; i++) {
+            w = (w + 1) >> 1;
+            h = (h + 1) >> 1;
+            var data = context.getImageData(0, h1, w, h);
+            this._mips.push({
+                width: data.width,
+                height: data.height,
+                data: new Uint8Array(data.data)
+            });
+            if (i < levels) {
+                context.drawImage(tmpCanvas, 0, h1, w, h, 0, h1 + h, w / 2, h / 2);
+                h1 += h;
+            }
+        }
+    };
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    PIXI.glCore.GLTexture.prototype._updateID = -1;
+    PIXI.BaseTexture.prototype._updateID = 0;
+    PIXI.BaseTexture.prototype.resource = null;
+    PIXI.BaseTexture.prototype.forceUploadStyle = true;
+    function bindTexture(texture, location, forceLocation) {
+        texture = texture || this.emptyTextures[location];
+        texture = texture.baseTexture || texture;
+        texture.touched = this.textureGC.count;
+        if (!forceLocation) {
+            for (var i = 0; i < this.boundTextures.length; i++) {
+                if (this.boundTextures[i] === texture) {
+                    return i;
+                }
+            }
+            if (location === undefined) {
+                this._nextTextureLocation++;
+                this._nextTextureLocation %= this.boundTextures.length;
+                location = this.boundTextures.length - this._nextTextureLocation - 1;
+            }
+        }
+        else {
+            location = location || 0;
+        }
+        var gl = this.gl;
+        var glTexture = texture._glTextures[this.CONTEXT_UID];
+        if (texture === this.emptyTextures[location]) {
+            glTexture._updateID = 0;
+        }
+        if (!glTexture || glTexture._updateID < texture._updateID) {
+            this.textureManager.updateTexture(texture, location);
+        }
+        else {
+            this.boundTextures[location] = texture;
+            gl.activeTexture(gl.TEXTURE0 + location);
+            gl.bindTexture(gl.TEXTURE_2D, glTexture.texture);
+        }
+        return location;
+    }
+    PIXI.WebGLRenderer.prototype.bindTexture = bindTexture;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var mesh;
+    (function (mesh) {
+        var tempPoint = new PIXI.Point();
+        var tempPolygon = new PIXI.Polygon();
+        var Mesh = (function (_super) {
+            __extends(Mesh, _super);
+            function Mesh(texture, vertices, uvs, indices, drawMode) {
+                if (texture === void 0) { texture = PIXI.Texture.EMPTY; }
+                if (drawMode === void 0) { drawMode = PIXI.mesh.Mesh.DRAW_MODES.TRIANGLE_MESH; }
+                var _this = _super.call(this) || this;
+                _this.dirty = 0;
+                _this.indexDirty = 0;
+                _this.blendMode = PIXI.BLEND_MODES.NORMAL;
+                _this.canvasPadding = 0;
+                _this.tintRgb = new Float32Array([1, 1, 1]);
+                _this._glDatas = {};
+                _this.uploadUvTransform = false;
+                _this.pluginName = 'meshHeaven';
+                _this.color = new pixi_heaven.ColorTransform();
+                _this._texture = texture;
+                if (!texture.baseTexture.hasLoaded) {
+                    texture.once('update', _this._onTextureUpdate, _this);
+                }
+                _this.uvs = uvs || new Float32Array([
+                    0, 0,
+                    1, 0,
+                    1, 1,
+                    0, 1
+                ]);
+                _this.vertices = vertices || new Float32Array([
+                    0, 0,
+                    100, 0,
+                    100, 100,
+                    0, 100
+                ]);
+                _this.indices = indices || new Uint16Array([0, 1, 3, 2]);
+                _this.drawMode = drawMode;
+                _this._uvTransform = new PIXI.extras.TextureTransform(texture, 0);
+                return _this;
+            }
+            Mesh.prototype.updateTransform = function () {
+                this.refresh();
+                this._boundsID++;
+                this.transform.updateTransform(this.parent.transform);
+                this.worldAlpha = this.alpha * this.parent.worldAlpha;
+                if (this.color) {
+                    this.color.alpha = this.worldAlpha;
+                    this.color.updateTransform();
+                }
+                for (var i = 0, j = this.children.length; i < j; ++i) {
+                    var child = this.children[i];
+                    if (child.visible) {
+                        child.updateTransform();
+                    }
+                }
+            };
+            Mesh.prototype._renderWebGL = function (renderer) {
+                renderer.setObjectRenderer(renderer.plugins[this.pluginName]);
+                renderer.plugins[this.pluginName].render(this);
+            };
+            Mesh.prototype._renderCanvas = function (renderer) {
+                renderer.plugins['mesh'].render(this);
+            };
+            Mesh.prototype._onTextureUpdate = function () {
+                this._uvTransform.texture = this._texture;
+                this.color.pma = this._texture.baseTexture.premultipliedAlpha;
+                this.refresh();
+            };
+            Mesh.prototype.multiplyUvs = function () {
+                if (!this.uploadUvTransform) {
+                    this._uvTransform.multiplyUvs(this.uvs);
+                }
+            };
+            Mesh.prototype.refresh = function (forceUpdate) {
+                if (forceUpdate === void 0) { forceUpdate = false; }
+                if (this._uvTransform.update(forceUpdate)) {
+                    this._refreshUvs();
+                }
+            };
+            Mesh.prototype._refreshUvs = function () {
+            };
+            Mesh.prototype._calculateBounds = function () {
+                this._bounds.addVertices(this.transform, this.vertices, 0, this.vertices.length);
+            };
+            Mesh.prototype.containsPoint = function (point) {
+                if (!this.getBounds().contains(point.x, point.y)) {
+                    return false;
+                }
+                this.worldTransform.applyInverse(point, tempPoint);
+                var vertices = this.vertices;
+                var points = tempPolygon.points;
+                var indices = this.indices;
+                var len = this.indices.length;
+                var step = this.drawMode === Mesh.DRAW_MODES.TRIANGLES ? 3 : 1;
+                for (var i = 0; i + 2 < len; i += step) {
+                    var ind0 = indices[i] * 2;
+                    var ind1 = indices[i + 1] * 2;
+                    var ind2 = indices[i + 2] * 2;
+                    points[0] = vertices[ind0];
+                    points[1] = vertices[ind0 + 1];
+                    points[2] = vertices[ind1];
+                    points[3] = vertices[ind1 + 1];
+                    points[4] = vertices[ind2];
+                    points[5] = vertices[ind2 + 1];
+                    if (tempPolygon.contains(tempPoint.x, tempPoint.y)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+            Object.defineProperty(Mesh.prototype, "texture", {
+                get: function () {
+                    return this._texture;
+                },
+                set: function (value) {
+                    if (this._texture === value) {
+                        return;
+                    }
+                    this._texture = value;
+                    if (value) {
+                        if (value.baseTexture.hasLoaded) {
+                            this._onTextureUpdate();
+                        }
+                        else {
+                            value.once('update', this._onTextureUpdate, this);
+                        }
+                    }
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Mesh.prototype, "tint", {
+                get: function () {
+                    return this.color ? this.color.tintBGR : 0xffffff;
+                },
+                set: function (value) {
+                    this.color && (this.color.tintBGR = value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Mesh.DRAW_MODES = PIXI.mesh.Mesh.DRAW_MODES;
+            return Mesh;
+        }(PIXI.Container));
+        mesh.Mesh = Mesh;
+    })(mesh = pixi_heaven.mesh || (pixi_heaven.mesh = {}));
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var mesh;
+    (function (mesh) {
+        var GroupD8 = PIXI.GroupD8;
+        var Plane = (function (_super) {
+            __extends(Plane, _super);
+            function Plane(texture, verticesX, verticesY, direction) {
+                if (verticesX === void 0) { verticesX = 2; }
+                if (verticesY === void 0) { verticesY = 2; }
+                if (direction === void 0) { direction = 0; }
+                var _this = _super.call(this, texture) || this;
+                _this._dimensionsID = 0;
+                _this._lastDimensionsID = -1;
+                _this._verticesID = 0;
+                _this._lastVerticesID = -1;
+                _this._uvsID = 0;
+                _this._lastUvsID = -1;
+                _this.autoResetVertices = true;
+                _this.calculatedVertices = null;
+                _this._verticesX = verticesX || 2;
+                _this._verticesY = verticesY || 2;
+                _this._direction = (direction || 0) & (~1);
+                _this._lastWidth = texture.orig.width;
+                _this._lastHeight = texture.orig.height;
+                _this._width = 0;
+                _this._height = 0;
+                _this._anchor = new PIXI.ObservablePoint(_this._onAnchorUpdate, _this);
+                _this.drawMode = mesh.Mesh.DRAW_MODES.TRIANGLES;
+                _this.refresh();
+                return _this;
+            }
+            Object.defineProperty(Plane.prototype, "verticesX", {
+                get: function () {
+                    return this._verticesX;
+                },
+                set: function (value) {
+                    if (this._verticesX === value) {
+                        return;
+                    }
+                    this._verticesX = value;
+                    this._dimensionsID++;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Plane.prototype, "verticesY", {
+                get: function () {
+                    return this._verticesY;
+                },
+                set: function (value) {
+                    if (this._verticesY === value) {
+                        return;
+                    }
+                    this._verticesY = value;
+                    this._dimensionsID++;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Plane.prototype, "direction", {
+                get: function () {
+                    return this._direction;
+                },
+                set: function (value) {
+                    if (value % 2 !== 0) {
+                        throw new Error('plane does not support diamond shape yet');
+                    }
+                    if (this._direction === value) {
+                        return;
+                    }
+                    this._direction = value;
+                    this._verticesID++;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Plane.prototype, "width", {
+                get: function () {
+                    return this._width || this.texture.orig.width;
+                },
+                set: function (value) {
+                    if (this._width === value) {
+                        return;
+                    }
+                    this._width = value;
+                    this._verticesID++;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Plane.prototype, "height", {
+                get: function () {
+                    return this._height || this.texture.orig.height;
+                },
+                set: function (value) {
+                    if (this._height === value) {
+                        return;
+                    }
+                    this._height = value;
+                    this._verticesID++;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(Plane.prototype, "anchor", {
+                get: function () {
+                    return this._anchor;
+                },
+                set: function (value) {
+                    this._anchor.copy(value);
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Plane.prototype._onAnchorUpdate = function () {
+                this._verticesID++;
+            };
+            Plane.prototype.invalidateVertices = function () {
+                this._verticesID++;
+            };
+            Plane.prototype.invalidateUvs = function () {
+                this._uvsID++;
+            };
+            Plane.prototype.invalidate = function () {
+                this._verticesID++;
+                this._uvsID++;
+            };
+            Plane.prototype.refresh = function (forceUpdate) {
+                if (forceUpdate === void 0) { forceUpdate = false; }
+                if (this._texture.noFrame) {
+                    return;
+                }
+                this.refreshDimensions(forceUpdate);
+                if (this._lastWidth !== this.width
+                    || this._lastHeight !== this.height) {
+                    this._lastWidth = this.width;
+                    this._lastHeight = this.height;
+                    if (this.autoResetVertices) {
+                        this._verticesID++;
+                    }
+                }
+                if (this._uvTransform.update(forceUpdate)) {
+                    this._uvsID++;
+                }
+                if (this._uvsID !== this._lastUvsID) {
+                    this._refreshUvs();
+                }
+                this.refreshVertices();
+            };
+            Plane.prototype.refreshDimensions = function (forceUpdate) {
+                if (forceUpdate === void 0) { forceUpdate = false; }
+                if (!forceUpdate && this._lastDimensionsID === this._dimensionsID) {
+                    return;
+                }
+                this._lastDimensionsID = this._dimensionsID;
+                this._verticesID++;
+                this._uvsID++;
+                var total = this._verticesX * this._verticesY;
+                var segmentsX = this._verticesX - 1;
+                var segmentsY = this._verticesY - 1;
+                var indices = [];
+                var totalSub = segmentsX * segmentsY;
+                for (var i = 0; i < totalSub; i++) {
+                    var xpos = i % segmentsX;
+                    var ypos = (i / segmentsX) | 0;
+                    var value = (ypos * this._verticesX) + xpos;
+                    var value2 = (ypos * this._verticesX) + xpos + 1;
+                    var value3 = ((ypos + 1) * this._verticesX) + xpos;
+                    var value4 = ((ypos + 1) * this._verticesX) + xpos + 1;
+                    indices.push(value, value2, value3);
+                    indices.push(value2, value4, value3);
+                }
+                this.indices = new Uint16Array(indices);
+                this.uvs = new Float32Array(total * 2);
+                this.vertices = new Float32Array(total * 2);
+                this.calculatedVertices = new Float32Array(total * 2);
+                this.indexDirty++;
+            };
+            Plane.prototype.refreshVertices = function (forceUpdate) {
+                if (forceUpdate === void 0) { forceUpdate = false; }
+                var texture = this._texture;
+                if (texture.noFrame) {
+                    return;
+                }
+                if (forceUpdate || this._lastVerticesID !== this._verticesID) {
+                    this._lastVerticesID = this._verticesID;
+                    this._refreshVertices();
+                }
+            };
+            Plane.prototype._refreshUvs = function () {
+                this._uvsID = this._lastUvsID;
+                var total = this._verticesX * this._verticesY;
+                var uvs = this.uvs;
+                var direction = this._direction;
+                var ux = GroupD8.uX(direction);
+                var uy = GroupD8.uY(direction);
+                var vx = GroupD8.vX(direction);
+                var vy = GroupD8.vY(direction);
+                var factorU = 1.0 / (this._verticesX - 1);
+                var factorV = 1.0 / (this._verticesY - 1);
+                for (var i = 0; i < total; i++) {
+                    var x = (i % this._verticesX);
+                    var y = ((i / this._verticesX) | 0);
+                    x = (x * factorU) - 0.5;
+                    y = (y * factorV) - 0.5;
+                    uvs[i * 2] = (ux * x) + (vx * y) + 0.5;
+                    uvs[(i * 2) + 1] = (uy * x) + (vy * y) + 0.5;
+                }
+                this.dirty++;
+                this.multiplyUvs();
+            };
+            Plane.prototype.calcVertices = function () {
+                var total = this._verticesX * this._verticesY;
+                var vertices = this.calculatedVertices;
+                var width = this.width;
+                var height = this.height;
+                var direction = this._direction;
+                var ux = GroupD8.uX(direction);
+                var uy = GroupD8.uY(direction);
+                var vx = GroupD8.vX(direction);
+                var vy = GroupD8.vY(direction);
+                var anchor = this._anchor;
+                var offsetX = (0.5 * (1 - (ux + vx))) - anchor._x;
+                var offsetY = (0.5 * (1 - (uy + vy))) - anchor._y;
+                var factorU = 1.0 / (this._verticesX - 1);
+                var factorV = 1.0 / (this._verticesY - 1);
+                ux *= factorU;
+                uy *= factorU;
+                vx *= factorV;
+                vy *= factorV;
+                for (var i = 0; i < total; i++) {
+                    var x = (i % this._verticesX);
+                    var y = ((i / this._verticesX) | 0);
+                    vertices[i * 2] = ((ux * x) + (vx * y) + offsetX) * width;
+                    vertices[(i * 2) + 1] = ((uy * x) + (vy * y) + offsetY) * height;
+                }
+            };
+            Plane.prototype._refreshVertices = function () {
+                this.calcVertices();
+                var vertices = this.vertices;
+                var calculatedVertices = this.calculatedVertices;
+                var len = vertices.length;
+                for (var i = 0; i < len; i++) {
+                    vertices[i] = calculatedVertices[i];
+                }
+            };
+            Plane.prototype.reset = function () {
+                if (!this.texture.noFrame) {
+                    this._refreshUvs();
+                    this.refreshVertices(true);
+                }
+            };
+            return Plane;
+        }(mesh.Mesh));
+        mesh.Plane = Plane;
+    })(mesh = pixi_heaven.mesh || (pixi_heaven.mesh = {}));
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var mesh;
+    (function (mesh) {
+        var DEFAULT_BORDER_SIZE = 10;
+        var NineSlicePlane = (function (_super) {
+            __extends(NineSlicePlane, _super);
+            function NineSlicePlane(texture, leftWidth, topHeight, rightWidth, bottomHeight) {
+                if (leftWidth === void 0) { leftWidth = DEFAULT_BORDER_SIZE; }
+                if (topHeight === void 0) { topHeight = DEFAULT_BORDER_SIZE; }
+                if (rightWidth === void 0) { rightWidth = DEFAULT_BORDER_SIZE; }
+                if (bottomHeight === void 0) { bottomHeight = DEFAULT_BORDER_SIZE; }
+                var _this = _super.call(this, texture, 4, 4) || this;
+                _this._leftWidth = leftWidth;
+                _this._rightWidth = rightWidth;
+                _this._topHeight = topHeight;
+                _this._bottomHeight = bottomHeight;
+                _this.refresh(true);
+                return _this;
+            }
+            Object.defineProperty(NineSlicePlane.prototype, "leftWidth", {
+                get: function () {
+                    return this._leftWidth;
+                },
+                set: function (value) {
+                    if (this._leftWidth === value) {
+                        return;
+                    }
+                    this._leftWidth = value;
+                    this._verticesID++;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(NineSlicePlane.prototype, "rightWidth", {
+                get: function () {
+                    return this._rightWidth;
+                },
+                set: function (value) {
+                    if (this._rightWidth === value) {
+                        return;
+                    }
+                    this._rightWidth = value;
+                    this._verticesID++;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(NineSlicePlane.prototype, "topHeight", {
+                get: function () {
+                    return this._topHeight;
+                },
+                set: function (value) {
+                    if (this._topHeight === value) {
+                        return;
+                    }
+                    this._topHeight = value;
+                    this._verticesID++;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            Object.defineProperty(NineSlicePlane.prototype, "bottomHeight", {
+                get: function () {
+                    return this._bottomHeight;
+                },
+                set: function (value) {
+                    if (this._bottomHeight === value) {
+                        return;
+                    }
+                    this._bottomHeight = value;
+                    this._verticesID++;
+                },
+                enumerable: true,
+                configurable: true
+            });
+            NineSlicePlane.prototype._refreshVertices = function () {
+                this.updateHorizontalVertices();
+                this.updateVerticalVertices();
+                var vertices = this.vertices;
+                var anchor = this._anchor;
+                var offsetX = anchor._x * this.width;
+                var offsetY = anchor._y * this.height;
+                for (var i = 0; i < 32; i += 2) {
+                    vertices[i] += offsetX;
+                    vertices[i + 1] += offsetY;
+                }
+                this.dirty++;
+            };
+            NineSlicePlane.prototype._refreshUvs = function () {
+                this._uvsID = this._lastUvsID;
+                var uvs = this.uvs;
+                var texture = this._texture;
+                var width = texture.orig.width;
+                var height = texture.orig.height;
+                uvs[0] = uvs[8] = uvs[16] = uvs[24] = 0;
+                uvs[2] = uvs[10] = uvs[18] = uvs[26] = this._leftWidth / width;
+                uvs[4] = uvs[12] = uvs[20] = uvs[28] = 1 - (this._rightWidth / width);
+                uvs[6] = uvs[14] = uvs[22] = uvs[30] = 1;
+                uvs[1] = uvs[3] = uvs[5] = uvs[7] = 0;
+                uvs[9] = uvs[11] = uvs[13] = uvs[15] = this._topHeight / height;
+                uvs[17] = uvs[19] = uvs[21] = uvs[23] = 1 - (this._bottomHeight / height);
+                uvs[25] = uvs[27] = uvs[29] = uvs[31] = 1;
+                this.dirty++;
+                this.multiplyUvs();
+            };
+            NineSlicePlane.prototype.updateHorizontalVertices = function () {
+                var vertices = this.vertices;
+                vertices[1] = vertices[3] = vertices[5] = vertices[7] = 0;
+                vertices[9] = vertices[11] = vertices[13] = vertices[15] = this._topHeight;
+                vertices[17] = vertices[19] = vertices[21] = vertices[23] = this._height - this._bottomHeight;
+                vertices[25] = vertices[27] = vertices[29] = vertices[31] = this._height;
+            };
+            NineSlicePlane.prototype.updateVerticalVertices = function () {
+                var vertices = this.vertices;
+                vertices[0] = vertices[8] = vertices[16] = vertices[24] = 0;
+                vertices[2] = vertices[10] = vertices[18] = vertices[26] = this._leftWidth;
+                vertices[4] = vertices[12] = vertices[20] = vertices[28] = this._width - this._rightWidth;
+                vertices[6] = vertices[14] = vertices[22] = vertices[30] = this._width;
+            };
+            NineSlicePlane.prototype._renderCanvas = function (renderer) {
+                if (!this._texture.valid) {
+                    return;
+                }
+                if (this._texture.rotate) {
+                    _super.prototype._renderCanvas.call(this, renderer);
+                    return;
+                }
+                var context = renderer.context;
+                context.globalAlpha = this.worldAlpha;
+                var transform = this.worldTransform;
+                var res = renderer.resolution;
+                if (renderer.roundPixels) {
+                    context.setTransform(transform.a * res, transform.b * res, transform.c * res, transform.d * res, (transform.tx * res) | 0, (transform.ty * res) | 0);
+                }
+                else {
+                    context.setTransform(transform.a * res, transform.b * res, transform.c * res, transform.d * res, transform.tx * res, transform.ty * res);
+                }
+                var base = this._texture.baseTexture;
+                var textureSource = base.source;
+                var w = base.realWidth;
+                var h = base.realHeight;
+                this.drawSegment(context, textureSource, w, h, 0, 1, 10, 11);
+                this.drawSegment(context, textureSource, w, h, 2, 3, 12, 13);
+                this.drawSegment(context, textureSource, w, h, 4, 5, 14, 15);
+                this.drawSegment(context, textureSource, w, h, 8, 9, 18, 19);
+                this.drawSegment(context, textureSource, w, h, 10, 11, 20, 21);
+                this.drawSegment(context, textureSource, w, h, 12, 13, 22, 23);
+                this.drawSegment(context, textureSource, w, h, 16, 17, 26, 27);
+                this.drawSegment(context, textureSource, w, h, 18, 19, 28, 29);
+                this.drawSegment(context, textureSource, w, h, 20, 21, 30, 31);
+            };
+            NineSlicePlane.prototype.drawSegment = function (context, textureSource, w, h, x1, y1, x2, y2) {
+                var uvs = this.uvs;
+                var vertices = this.vertices;
+                var sw = (uvs[x2] - uvs[x1]) * w;
+                var sh = (uvs[y2] - uvs[y1]) * h;
+                var dw = vertices[x2] - vertices[x1];
+                var dh = vertices[y2] - vertices[y1];
+                if (sw < 1) {
+                    sw = 1;
+                }
+                if (sh < 1) {
+                    sh = 1;
+                }
+                if (dw < 1) {
+                    dw = 1;
+                }
+                if (dh < 1) {
+                    dh = 1;
+                }
+                context.drawImage(textureSource, uvs[x1] * w, uvs[y1] * h, sw, sh, vertices[x1], vertices[y1], dw, dh);
+            };
+            return NineSlicePlane;
+        }(mesh.Plane));
+        mesh.NineSlicePlane = NineSlicePlane;
+    })(mesh = pixi_heaven.mesh || (pixi_heaven.mesh = {}));
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var mesh;
+    (function (mesh) {
+        var GroupD8 = PIXI.GroupD8;
+        var Rope = (function (_super) {
+            __extends(Rope, _super);
+            function Rope(texture, verticesX, verticesY, direction) {
+                if (verticesY === void 0) { verticesY = 2; }
+                if (direction === void 0) { direction = 0; }
+                var _this = _super.call(this, texture, verticesX.length || verticesX, verticesY, direction) || this;
+                _this.points = [];
+                _this.calculatedPoints = [];
+                _this.autoUpdate = true;
+                _this.points = [];
+                _this.calculatedPoints = [];
+                if (verticesX instanceof Array) {
+                    _this.points = verticesX;
+                    _this.autoResetVertices = false;
+                }
+                _this._checkPointsLen();
+                if (GroupD8.isVertical(direction)) {
+                    _this._anchor._x = 0.5;
+                }
+                else {
+                    _this._anchor._y = 0.5;
+                }
+                _this.refresh();
+                return _this;
+            }
+            Rope.prototype.updateTransform = function () {
+                if (this.autoUpdate) {
+                    this._verticesID++;
+                }
+                this.refresh();
+                this.containerUpdateTransform();
+            };
+            Rope.prototype._onAnchorUpdate = function () {
+                this.reset();
+            };
+            Rope.prototype._checkPointsLen = function () {
+                var len = this._verticesX;
+                var points = this.points;
+                var calculatedPoints = this.calculatedPoints;
+                if (points.length > len) {
+                    points.length = len;
+                }
+                while (points.length < len) {
+                    points.push(new mesh.RopePoint(0, 0, 0, 1.0));
+                }
+                if (calculatedPoints.length > len) {
+                    calculatedPoints.length = len;
+                }
+                while (calculatedPoints.length < len) {
+                    calculatedPoints.push(new mesh.RopePoint(0, 0, 0, 1.0));
+                }
+            };
+            Rope.prototype.refresh = function (forceUpdate) {
+                if (forceUpdate === void 0) { forceUpdate = false; }
+                if (!this.points || this._texture.noFrame) {
+                    return;
+                }
+                if (this._lastWidth !== this.width
+                    || this._lastHeight !== this.height) {
+                    this._lastWidth = this.width;
+                    this._lastHeight = this.height;
+                    if (this.autoResetVertices) {
+                        this.resetPoints();
+                    }
+                }
+                _super.prototype.refresh.call(this, forceUpdate);
+            };
+            Rope.prototype.calcPoints = function () {
+                var len = this._verticesX;
+                var points = this.calculatedPoints;
+                var dir = this._direction;
+                var width = this.width;
+                var height = this.height;
+                var dx = GroupD8.uX(dir);
+                var dy = GroupD8.uY(dir);
+                var anchor = this._anchor;
+                var offsetX = dx !== 0 ? 0.5 - anchor._x : 0;
+                var offsetY = dy !== 0 ? 0.5 - anchor._y : 0;
+                for (var i = 0; i < len; i++) {
+                    var t = (i - ((len - 1) * 0.5)) / (len - 1);
+                    points[i].x = ((t * dx) + offsetX) * width;
+                    points[i].y = ((t * dy) + offsetY) * height;
+                }
+            };
+            Rope.prototype.resetPoints = function () {
+                this.calcPoints();
+                var len = this._verticesX;
+                var points = this.points;
+                var calculatedPoints = this.calculatedPoints;
+                for (var i = 0; i < len; i++) {
+                    points[i].x = calculatedPoints[i].x;
+                    points[i].y = calculatedPoints[i].y;
+                }
+            };
+            Rope.prototype.resetOffsets = function () {
+                var points = this.points;
+                var len = points.length;
+                for (var i = 0; i < len; i++) {
+                    points[i].offset = 0.0;
+                }
+                for (var i = 0; i < len; i++) {
+                    points[i].scale = 1.0;
+                }
+            };
+            Rope.prototype.reset = function () {
+                this._checkPointsLen();
+                this.resetPoints();
+                this.resetOffsets();
+                _super.prototype.reset.call(this);
+            };
+            Rope.prototype.calcVertices = function () {
+                var points = this.points;
+                var lastPoint = points[0];
+                var nextPoint;
+                var normalX = 0;
+                var normalY = 0;
+                var width = this.width;
+                var height = this.height;
+                var vertices = this.calculatedVertices;
+                var verticesX = this.verticesX;
+                var verticesY = this.verticesY;
+                var direction = this._direction;
+                var vx = GroupD8.vX(direction);
+                var vy = GroupD8.vY(direction);
+                var wide = (vx * width) + (vy * height);
+                var anchor = this._anchor;
+                var normalOffset = wide * ((anchor._x * vx) + (anchor._y * vy));
+                var normalFactor = -Math.abs(wide) / (verticesY - 1);
+                for (var i = 0; i < verticesX; i++) {
+                    var point = points[i];
+                    var offset = points[i].offset || 0;
+                    var scale = (points[i].scale !== undefined) ? points[i].scale : 1.0;
+                    if (i < points.length - 1) {
+                        nextPoint = points[i + 1];
+                    }
+                    else {
+                        nextPoint = point;
+                    }
+                    normalY = -(nextPoint.x - lastPoint.x);
+                    normalX = nextPoint.y - lastPoint.y;
+                    var perpLength = Math.sqrt((normalX * normalX) + (normalY * normalY));
+                    normalX /= perpLength;
+                    normalY /= perpLength;
+                    for (var j = 0; j < verticesY; j++) {
+                        var ind = (i + (j * verticesX)) * 2;
+                        vertices[ind] = point.x + (normalX * (offset + (scale * (normalOffset + (normalFactor * j)))));
+                        vertices[ind + 1] = point.y + (normalY * (offset + (scale * (normalOffset + (normalFactor * j)))));
+                    }
+                    lastPoint = point;
+                }
+            };
+            return Rope;
+        }(mesh.Plane));
+        mesh.Rope = Rope;
+    })(mesh = pixi_heaven.mesh || (pixi_heaven.mesh = {}));
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var mesh;
+    (function (mesh) {
+        var RopePoint = (function (_super) {
+            __extends(RopePoint, _super);
+            function RopePoint(x, y, offset, scale) {
+                if (x === void 0) { x = 0; }
+                if (y === void 0) { y = 0; }
+                if (offset === void 0) { offset = 0; }
+                if (scale === void 0) { scale = 1.0; }
+                var _this = _super.call(this, x, y) || this;
+                _this.offset = offset;
+                _this.scale = scale;
+                return _this;
+            }
+            RopePoint.prototype.clone = function () {
+                return new RopePoint(this.x, this.y, this.offset, this.scale);
+            };
+            RopePoint.prototype.copy = function (p) {
+                this.set(p.x, p.y, p.offset, p.scale);
+            };
+            RopePoint.prototype.set = function (x, y, offset, scale) {
+                this.x = x || 0;
+                this.y = y || ((y !== 0) ? this.x : 0);
+                this.offset = offset || 0;
+                this.scale = (scale !== undefined) ? scale : 1.0;
+            };
+            return RopePoint;
+        }(PIXI.Point));
+        mesh.RopePoint = RopePoint;
+    })(mesh = pixi_heaven.mesh || (pixi_heaven.mesh = {}));
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var AtlasOptions = (function () {
+        function AtlasOptions(src) {
+            this.width = 2048;
+            this.height = 2048;
+            this.loadFactor = 0.95;
+            this.repackBeforeResize = true;
+            this.repackAfterResize = true;
+            this.algoTreeResize = false;
+            this.maxSize = 0;
+            this.mipLevels = 0;
+            this.padding = 0;
+            this.format = WebGLRenderingContext.RGBA;
+            if (src) {
+                this.assign(src);
+            }
+        }
+        AtlasOptions.prototype.assign = function (src) {
+            this.width = src.width || this.width;
+            this.height = src.height || src.width || this.height;
+            this.maxSize = src.maxSize || AtlasOptions.MAX_SIZE;
+            this.format = src.format || this.format;
+            this.loadFactor = src.loadFactor || this.loadFactor;
+            this.padding = src.padding || this.padding;
+            this.mipLevels = src.mipLevels || this.mipLevels;
+            if (src.repackAfterResize !== undefined) {
+                this.repackAfterResize = src.repackAfterResize;
+            }
+            if (src.repackBeforeResize !== undefined) {
+                this.repackBeforeResize = src.repackBeforeResize;
+            }
+            if (src.algoTreeResize !== undefined) {
+                this.algoTreeResize = src.algoTreeResize;
+            }
+            return this;
+        };
+        AtlasOptions.MAX_SIZE = 0;
+        return AtlasOptions;
+    }());
+    pixi_heaven.AtlasOptions = AtlasOptions;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var RGBA = WebGLRenderingContext.RGBA;
+    var BaseTexture = PIXI.BaseTexture;
+    var SuperAtlasEntry = (function () {
+        function SuperAtlasEntry() {
+        }
+        return SuperAtlasEntry;
+    }());
+    pixi_heaven.SuperAtlasEntry = SuperAtlasEntry;
+    var AtlasTree = (function () {
+        function AtlasTree() {
+            this.failed = [];
+            this.good = [];
+            this.hash = {};
+        }
+        AtlasTree.prototype.apply = function () {
+            throw new Error("Method not implemented.");
+        };
+        return AtlasTree;
+    }());
+    pixi_heaven.AtlasTree = AtlasTree;
+    var SuperAtlas = (function () {
+        function SuperAtlas() {
+            this.baseTexture = null;
+            this.format = RGBA;
+            this.width = 2048;
+            this.height = 2048;
+            this.all = {};
+            this.tree = null;
+            this.imageTextureRebuildUpdateID = 0;
+        }
+        SuperAtlas.prototype.onTextureNew = function (baseTexture) {
+            this.baseTexture = baseTexture;
+            baseTexture.resource = this;
+            baseTexture.width = this.width;
+            baseTexture.height = this.height;
+            baseTexture.hasLoaded = true;
+            baseTexture.height = this.height;
+        };
+        SuperAtlas.create = function (options) {
+            var opt = options instanceof pixi_heaven.AtlasOptions ? options : new pixi_heaven.AtlasOptions(options);
+            var atlas = new SuperAtlas();
+            atlas.options = opt;
+            atlas.width = opt.width;
+            atlas.height = opt.height;
+            atlas.format = opt.format;
+            atlas.onTextureNew(new PIXI.BaseTexture());
+            atlas.tree = new AtlasTree();
+            atlas.tree.root = atlas.createAtlasRoot();
+            return atlas;
+        };
+        SuperAtlas.prototype.destroy = function () {
+            if (this.baseTexture) {
+                this.baseTexture.destroy();
+                this.baseTexture = null;
+            }
+        };
+        SuperAtlas.prototype.add = function (texture, swapCache) {
+            var baseTexture;
+            var arg;
+            if (texture instanceof BaseTexture) {
+                baseTexture = texture;
+                arg = new PIXI.Texture(baseTexture);
+            }
+            else {
+                baseTexture = texture.baseTexture;
+                arg = texture;
+            }
+            var entry = this.all[baseTexture.uid];
+            if (!entry) {
+                entry = new pixi_heaven.AtlasEntry(this, baseTexture);
+                var p1 = this.options.padding, p2 = (1 << this.options.mipLevels);
+                var w1 = entry.width + p1, h1 = entry.height + p1;
+                entry.width = w1 + (p2 - entry.width % p2) % p2;
+                entry.height = h1 + (p2 - entry.height % p2) % p2;
+                this.insert(entry);
+            }
+            var region = new pixi_heaven.TextureRegion(entry, arg);
+            if (swapCache) {
+                var ids = texture.textureCacheIds;
+                for (var i = 0; i < ids.length; i++) {
+                    PIXI.utils.TextureCache[ids[i]] = region;
+                }
+            }
+            entry.regions.push(region);
+            return region;
+        };
+        SuperAtlas.prototype.addHash = function (textures, swapCache) {
+            var hash = {};
+            for (var key in textures) {
+                hash[key] = this.add(textures[key], swapCache);
+            }
+            return hash;
+        };
+        SuperAtlas.prototype.insert = function (entry) {
+            if (this.tryInsert(entry))
+                return;
+            this.tree.failed.push(entry);
+            this.all[entry.baseTexture.uid] = entry;
+        };
+        SuperAtlas.prototype.remove = function (entry) {
+            if (entry.currentNode == null) {
+                var failed = this.tree.failed;
+                var ind = failed.indexOf(entry);
+                if (ind >= 0) {
+                    failed.splice(ind, 1);
+                }
+            }
+            else {
+                throw new Error("Cant remove packed texture");
+            }
+        };
+        SuperAtlas.prototype.tryInsert = function (entry) {
+            var node = this.tree.root.insert(this.width, this.height, entry.width, entry.height, entry);
+            if (!node) {
+                return false;
+            }
+            entry.nodeUpdateID = ++this.baseTexture._updateID;
+            entry.currentNode = node;
+            entry.currentAtlas = this;
+            this.all[entry.baseTexture.uid] = entry;
+            this.tree.hash[entry.baseTexture.uid] = node;
+            this.tree.good.push(entry);
+            return true;
+        };
+        SuperAtlas.prototype.createAtlasRoot = function () {
+            var res = new pixi_heaven.AtlasNode();
+            if (!this.options.algoTreeResize) {
+                res.rect.width = this.width;
+                res.rect.height = this.height;
+            }
+            return res;
+        };
+        SuperAtlas.prototype.repack = function (failOnFirst) {
+            var _this = this;
+            if (failOnFirst === void 0) { failOnFirst = false; }
+            var pack = new AtlasTree();
+            var all = this.tree.good.slice(0);
+            var failed = this.tree.failed;
+            for (var i = 0; i < failed.length; i++) {
+                all.push(failed[i]);
+            }
+            all.sort(function (a, b) {
+                if (b.width == a.width) {
+                    return b.height - a.height;
+                }
+                return b.width - a.width;
+            });
+            var root = this.createAtlasRoot();
+            pack.root = root;
+            for (var _i = 0, all_1 = all; _i < all_1.length; _i++) {
+                var obj = all_1[_i];
+                var node = root.insert(this.width, this.height, obj.width, obj.height, obj);
+                if (!node) {
+                    pack.failed.push(obj);
+                    if (failOnFirst) {
+                        return pack;
+                    }
+                }
+                else {
+                    pack.hash[obj.baseTexture.uid] = node;
+                }
+            }
+            pack.apply = function () {
+                _this.tree.root = pack.root;
+                _this.tree.failed = pack.failed.slice(0);
+                _this.tree.hash = pack.hash;
+                for (var _i = 0, all_2 = all; _i < all_2.length; _i++) {
+                    var obj = all_2[_i];
+                    obj.currentNode = pack.hash[obj.baseTexture.uid] || null;
+                    obj.currentAtlas = obj.currentNode ? _this : null;
+                    for (var _a = 0, _b = obj.regions; _a < _b.length; _a++) {
+                        var region = _b[_a];
+                        region.updateFrame();
+                    }
+                }
+                _this.imageTextureRebuildUpdateID++;
+            };
+            return pack;
+        };
+        SuperAtlas.prototype.prepare = function (renderer) {
+            renderer.textureManager.updateTexture(this.baseTexture);
+            throw new Error("Method not implemented.");
+        };
+        SuperAtlas.prototype.onTextureUpload = function (renderer, baseTexture, tex) {
+            tex.bind();
+            var imgTexture = this.baseTexture;
+            var gl = tex.gl;
+            var levels = this.options.mipLevels;
+            tex.mipmap = levels > 0;
+            tex.premultiplyAlpha = imgTexture.premultipliedAlpha;
+            gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, imgTexture.premultipliedAlpha);
+            var uploadAll = tex._updateID < this.imageTextureRebuildUpdateID;
+            if (uploadAll) {
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, imgTexture.width, imgTexture.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                if (tex.mipmap) {
+                    for (var lvl = 1; (imgTexture.width >> lvl) > 0; lvl++) {
+                        gl.texImage2D(gl.TEXTURE_2D, lvl, gl.RGBA, imgTexture.width >> lvl, imgTexture.height >> lvl, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                    }
+                }
+            }
+            for (var key in this.tree.hash) {
+                var node = this.tree.hash[key];
+                var entry = node.data;
+                var entryTex = entry.baseTexture;
+                if (!uploadAll && tex._updateID >= entry.nodeUpdateID)
+                    continue;
+                var rect = node.rect;
+                gl.texSubImage2D(gl.TEXTURE_2D, 0, rect.left, rect.top, gl.RGBA, gl.UNSIGNED_BYTE, entry.baseTexture.source);
+                if (levels > 0) {
+                    if (!entryTex._mips || entryTex._mips.length < levels) {
+                        entryTex.generateMips(levels);
+                    }
+                    var mips = entryTex._mips;
+                    for (var lvl = 1; lvl <= levels; lvl++) {
+                        var mip = mips[lvl - 1];
+                        gl.texSubImage2D(gl.TEXTURE_2D, lvl, rect.left >> lvl, rect.top >> lvl, mip.width, mip.height, gl.RGBA, gl.UNSIGNED_BYTE, mip.data);
+                    }
+                }
+            }
+            return true;
+        };
+        SuperAtlas.MAX_SIZE = 2048;
+        return SuperAtlas;
+    }());
+    pixi_heaven.SuperAtlas = SuperAtlas;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
     var whiteRgba = [1.0, 1.0, 1.0, 1.0];
     var blackRgba = [0.0, 0.0, 0.0, 1.0];
     var ColorTransform = (function () {
@@ -538,6 +1906,92 @@ var pixi_heaven;
         return ColorTransform;
     }());
     pixi_heaven.ColorTransform = ColorTransform;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var mesh;
+    (function (mesh_1) {
+        var glCore = PIXI.glCore;
+        var utils = PIXI.utils;
+        var matrixIdentity = PIXI.Matrix.IDENTITY;
+        var MeshHeavenRenderer = (function (_super) {
+            __extends(MeshHeavenRenderer, _super);
+            function MeshHeavenRenderer() {
+                var _this = _super !== null && _super.apply(this, arguments) || this;
+                _this.shader = null;
+                _this.shaderTrim = null;
+                return _this;
+            }
+            MeshHeavenRenderer.prototype.onContextChange = function () {
+                var gl = this.renderer.gl;
+                this.shader = new PIXI.Shader(gl, MeshHeavenRenderer.vert, MeshHeavenRenderer.frag);
+                this.shaderTrim = new PIXI.Shader(gl, MeshHeavenRenderer.vert, MeshHeavenRenderer.fragTrim);
+            };
+            MeshHeavenRenderer.prototype.render = function (mesh) {
+                var renderer = this.renderer;
+                var gl = renderer.gl;
+                var texture = mesh._texture;
+                if (!texture.valid) {
+                    return;
+                }
+                var glData = mesh._glDatas[renderer.CONTEXT_UID];
+                if (!glData) {
+                    renderer.bindVao(null);
+                    glData = {
+                        vertexBuffer: glCore.GLBuffer.createVertexBuffer(gl, mesh.vertices, gl.STREAM_DRAW),
+                        uvBuffer: glCore.GLBuffer.createVertexBuffer(gl, mesh.uvs, gl.STREAM_DRAW),
+                        indexBuffer: glCore.GLBuffer.createIndexBuffer(gl, mesh.indices, gl.STATIC_DRAW),
+                        vao: null,
+                        dirty: mesh.dirty,
+                        indexDirty: mesh.indexDirty,
+                    };
+                    glData.vao = new glCore.VertexArrayObject(gl)
+                        .addIndex(glData.indexBuffer)
+                        .addAttribute(glData.vertexBuffer, glData.shader.attributes.aVertexPosition, gl.FLOAT, false, 2 * 4, 0)
+                        .addAttribute(glData.uvBuffer, glData.shader.attributes.aTextureCoord, gl.FLOAT, false, 2 * 4, 0);
+                    mesh._glDatas[renderer.CONTEXT_UID] = glData;
+                }
+                renderer.bindVao(glData.vao);
+                if (mesh.dirty !== glData.dirty) {
+                    glData.dirty = mesh.dirty;
+                    glData.uvBuffer.upload(mesh.uvs);
+                }
+                if (mesh.indexDirty !== glData.indexDirty) {
+                    glData.indexDirty = mesh.indexDirty;
+                    glData.indexBuffer.upload(mesh.indices);
+                }
+                glData.vertexBuffer.upload(mesh.vertices);
+                var isTrimmed = texture.trim && (texture.trim.width < texture.orig.width
+                    || texture.trim.height < texture.orig.height);
+                var shader = isTrimmed ? this.shaderTrim : this.shader;
+                renderer.bindShader(shader);
+                glData.shader.uniforms.uSampler = renderer.bindTexture(texture);
+                renderer.state.setBlendMode(utils.correctBlendMode(mesh.blendMode, texture.baseTexture.premultipliedAlpha));
+                if (glData.shader.uniforms.uTransform) {
+                    if (mesh.uploadUvTransform) {
+                        glData.shader.uniforms.uTransform = mesh._uvTransform.mapCoord.toArray(true);
+                    }
+                    else {
+                        glData.shader.uniforms.uTransform = matrixIdentity.toArray(true);
+                    }
+                }
+                if (isTrimmed) {
+                    shader.uniforms.uClampFrame = mesh._uvTransform.uClampFrame;
+                }
+                glData.shader.uniforms.translationMatrix = mesh.worldTransform.toArray(true);
+                glData.shader.uniforms.uLight = mesh.color.light;
+                glData.shader.uniforms.uDark = mesh.color.dark;
+                var drawMode = mesh.drawMode === mesh_1.Mesh.DRAW_MODES.TRIANGLE_MESH ? gl.TRIANGLE_STRIP : gl.TRIANGLES;
+                glData.vao.draw(drawMode, mesh.indices.length, 0);
+            };
+            MeshHeavenRenderer.vert = "\nattribute vec2 aVertexPosition;\nattribute vec2 aTextureCoord;\n\nuniform mat3 projectionMatrix;\nuniform mat3 translationMatrix;\nuniform mat3 uTransform;\n\nvarying vec2 vTextureCoord;\n\nvoid main(void)\n{\n    gl_Position = vec4((projectionMatrix * translationMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);\n\n    vTextureCoord = (uTransform * vec3(aTextureCoord, 1.0)).xy;\n}\n";
+            MeshHeavenRenderer.frag = "\nvarying vec2 vTextureCoord;\nuniform vec4 uLight, uDark;\n\nuniform sampler2D uSampler;\n\nvoid main(void)\n{\n    vec4 texColor = texture2D(uSampler, vTextureCoord);\n    gl_FragColor.a = texColor.a * vLight.a;\n\tgl_FragColor.rgb = ((texColor.a - 1.0) * uDark.a + 1.0 - texColor.rgb) * uDark.rgb + texColor.rgb * uLight.rgb;\n}\n";
+            MeshHeavenRenderer.fragTrim = "\nvarying vec2 vTextureCoord;\nuniform vec4 uLight, uDark;\nuniform vec4 uClampFrame;\n\nuniform sampler2D uSampler;\n\nvoid main(void)\n{\n    vec2 coord = vTextureCoord;\n    if (coord.x < uClampFrame.x || coord.x > uClampFrame.z\n        || coord.y < uClampFrame.y || coord.y > uClampFrame.w)\n            discard;\n    coord = texture2D(uSampler, vTextureCoord);\n    gl_FragColor.a = texColor.a * vLight.a;\n\tgl_FragColor.rgb = ((texColor.a - 1.0) * uDark.a + 1.0 - texColor.rgb) * uDark.rgb + texColor.rgb * uLight.rgb;\n}\n";
+            return MeshHeavenRenderer;
+        }(PIXI.ObjectRenderer));
+        mesh_1.MeshHeavenRenderer = MeshHeavenRenderer;
+        PIXI.WebGLRenderer.registerPlugin('meshHeaven', MeshHeavenRenderer);
+    })(mesh = pixi_heaven.mesh || (pixi_heaven.mesh = {}));
 })(pixi_heaven || (pixi_heaven = {}));
 var pixi_heaven;
 (function (pixi_heaven) {
