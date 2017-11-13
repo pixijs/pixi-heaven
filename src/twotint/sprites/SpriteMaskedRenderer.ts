@@ -1,4 +1,4 @@
-namespace pixi_heaven {
+namespace pixi_heaven.webgl {
 	import MultiTextureSpriteRenderer = pixi_heaven.webgl.MultiTextureSpriteRenderer;
 
 	import BaseTexture = PIXI.BaseTexture;
@@ -100,8 +100,6 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 				uint32View[index + 4] = darkRgba;
 
 
-
-
 				index += stride;
 			}
 
@@ -138,8 +136,8 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 			// const touch = 0;// this.renderer.textureGC.count;
 
 			let index = 0;
-			let nextTexture: any;
-			let currentTexture: BaseTexture;
+			let nextTexture: any, nextMaskTexture: any;
+			let currentTexture: BaseTexture  = null, currentMaskTexture: BaseTexture = null;
 			let currentUniforms: any = null;
 			let groupCount = 1;
 			let textureCount = 0;
@@ -163,9 +161,22 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 
 				// upload the sprite elemetns...
 				// they have all ready been calculated so we just need to push them into the buffer.
-				const sprite = sprites[i] as any;
+				const sprite = sprites[i] as Sprite;
 
-				nextTexture = sprite._texture.baseTexture;
+				nextTexture = (sprite as any).texture.baseTexture;
+				nextMaskTexture = null;
+
+				if (sprite.maskSprite) {
+					sprite.calculateMaskVertices();
+					nextMaskTexture = sprite.maskSprite.texture.baseTexture;
+
+					if (currentMaskTexture === null) {
+						currentMaskTexture = nextMaskTexture;
+						currentGroup.textures[1] = nextMaskTexture;
+					} else {
+						currentTexture = null;
+					}
+				}
 
 				const spriteBlendMode = premultiplyBlendMode[Number(nextTexture.premultipliedAlpha)][sprite.blendMode];
 
@@ -175,6 +186,7 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 
 					// force the batch to break!
 					currentTexture = null;
+					currentMaskTexture = null;
 					textureCount = MAX_TEXTURES;
 					TICK++;
 				}
@@ -184,12 +196,14 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 					currentUniforms = uniforms;
 
 					currentTexture = null;
+					currentMaskTexture = null;
 					textureCount = MAX_TEXTURES;
 					TICK++;
 				}
 
 				if (currentTexture !== nextTexture) {
 					currentTexture = nextTexture;
+					currentMaskTexture = nextMaskTexture;
 
 					if (nextTexture._enabled !== TICK) {
 						if (textureCount === MAX_TEXTURES) {
@@ -209,8 +223,10 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 						nextTexture._enabled = TICK;
 						nextTexture._virtalBoundId = textureCount;
 
-						currentGroup.textures[currentGroup.textureCount++] = nextTexture;
-						textureCount++;
+						currentGroup.textureCount = MAX_TEXTURES;
+						currentGroup.textures[0] = nextTexture;
+						currentGroup.textures[1] = nextMaskTexture;
+						textureCount = MAX_TEXTURES;
 					}
 				}
 
@@ -252,7 +268,7 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 			// / render the groups..
 			for (i = 0; i < groupCount; i++) {
 				const group = groups[i];
-				const groupTextureCount = group.textureCount;
+				const groupTextureCount = 2;// group.textureCount;
 
 				if (group.uniforms !== currentUniforms) {
 					this.syncUniforms(group.uniforms);
@@ -277,6 +293,14 @@ gl_FragCoord = fragColor * (maskColor.a * maskColor.r * clip);
 
 			// reset elements for the next flush
 			this.currentIndex = 0;
+		}
+
+		genShader() {
+			const gl = this.renderer.gl;
+
+			this.MAX_TEXTURES = 2;
+
+			this.shader = generateMultiTextureShader(this.shaderVert, this.shaderFrag, gl, this.MAX_TEXTURES);
 		}
 	}
 

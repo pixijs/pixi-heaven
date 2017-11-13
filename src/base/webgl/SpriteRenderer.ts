@@ -94,6 +94,14 @@ namespace pixi_heaven.webgl {
 			this.renderer.on('prerender', this.onPrerender, this);
 		}
 
+		genShader(){
+			const gl = this.renderer.gl;
+
+			this.MAX_TEXTURES = Math.min(this.MAX_TEXTURES_LOCAL, this.renderer.plugins['sprite'].MAX_TEXTURES);
+
+			this.shader = generateMultiTextureShader(this.shaderVert, this.shaderFrag, gl, this.MAX_TEXTURES);
+		}
+
 		/**
 		 * Sets up the renderer context and necessary buffers.
 		 *
@@ -101,11 +109,8 @@ namespace pixi_heaven.webgl {
 		 */
 		onContextChange() {
 			const gl = this.renderer.gl;
-
-			this.MAX_TEXTURES = Math.min(this.MAX_TEXTURES_LOCAL, this.renderer.plugins['sprite'].MAX_TEXTURES);
-
 			// generate generateMultiTextureProgram, may be a better move?
-			this.shader = generateMultiTextureShader(this.shaderVert, this.shaderFrag, gl, this.MAX_TEXTURES);
+			this.genShader();
 
 			this.indexBuffer = GLBuffer.createIndexBuffer(gl, this.indices, gl.STATIC_DRAW);
 

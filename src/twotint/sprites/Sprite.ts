@@ -5,12 +5,12 @@ namespace pixi_heaven {
 
 	export class Sprite extends PIXI.Sprite {
 		color = new ColorTransform();
-		maskMult: PIXI.Sprite = null;
+		maskSprite: PIXI.Sprite = null;
 		maskVertexData: Float32Array = null;
 
 		constructor(texture: PIXI.Texture) {
 			super(texture);
-			this.maskMult = null;
+			this.maskSprite = null;
 			this.pluginName = 'spriteHeaven';
 		}
 
@@ -70,7 +70,7 @@ namespace pixi_heaven {
 
 		calculateMaskVertices() {
 			//WE HAVE A MASK
-			const maskSprite = this.mask as PIXI.Sprite;
+			const maskSprite = this.maskSprite;
 			const tex = maskSprite.texture;
 			const orig = tex.orig;
 			const anchor = maskSprite.anchor;
