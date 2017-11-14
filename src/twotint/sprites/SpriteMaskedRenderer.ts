@@ -190,6 +190,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 					} else {
 						currentTexture = null;
 						currentMaskTexture = null;
+						textureCount = MAX_TEXTURES;
 					}
 				}
 

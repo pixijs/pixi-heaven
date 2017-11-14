@@ -152,7 +152,7 @@ var pixi_heaven;
         var settings = PIXI.settings;
         var GLBuffer = PIXI.glCore.GLBuffer;
         var premultiplyBlendMode = PIXI.utils.premultiplyBlendMode;
-        var TICK = 0;
+        var TICK = 1 << 20;
         var BatchGroup = (function () {
             function BatchGroup() {
                 this.textures = [];
@@ -2207,7 +2207,6 @@ var pixi_heaven;
         var GLBuffer = PIXI.glCore.GLBuffer;
         var settings = PIXI.settings;
         var premultiplyBlendMode = PIXI.utils.premultiplyBlendMode;
-        var TICK = 0;
         var tempArray = new Float32Array([0, 0, 0, 0]);
         var SpriteMaskedRenderer = (function (_super) {
             __extends(SpriteMaskedRenderer, _super);
@@ -2290,7 +2289,6 @@ var pixi_heaven;
                 currentGroup.textureCount = 0;
                 currentGroup.start = 0;
                 currentGroup.blend = blendMode;
-                TICK++;
                 var i;
                 for (i = 0; i < this.currentIndex; ++i) {
                     var sprite = sprites[i];
@@ -2305,6 +2303,8 @@ var pixi_heaven;
                         }
                         else {
                             currentTexture = null;
+                            currentMaskTexture = null;
+                            textureCount = MAX_TEXTURES;
                         }
                     }
                     var spriteBlendMode = premultiplyBlendMode[Number(nextTexture.premultipliedAlpha)][sprite.blendMode];
@@ -2313,7 +2313,6 @@ var pixi_heaven;
                         currentTexture = null;
                         currentMaskTexture = null;
                         textureCount = MAX_TEXTURES;
-                        TICK++;
                     }
                     var uniforms = this.getUniforms(sprite);
                     if (currentUniforms !== uniforms) {
@@ -2321,29 +2320,24 @@ var pixi_heaven;
                         currentTexture = null;
                         currentMaskTexture = null;
                         textureCount = MAX_TEXTURES;
-                        TICK++;
                     }
                     if (currentTexture !== nextTexture) {
                         currentTexture = nextTexture;
                         currentMaskTexture = nextMaskTexture;
-                        if (nextTexture._enabled !== TICK) {
-                            if (textureCount === MAX_TEXTURES) {
-                                TICK++;
-                                textureCount = 0;
-                                currentGroup.size = i - currentGroup.start;
-                                currentGroup = groups[groupCount++];
-                                currentGroup.textureCount = 0;
-                                currentGroup.blend = blendMode;
-                                currentGroup.start = i;
-                                currentGroup.uniforms = currentUniforms;
-                            }
-                            nextTexture._enabled = TICK;
-                            nextTexture._virtalBoundId = textureCount;
-                            currentGroup.textureCount = MAX_TEXTURES;
-                            currentGroup.textures[0] = nextTexture;
-                            currentGroup.textures[1] = nextMaskTexture || PIXI.Texture.WHITE.baseTexture;
-                            textureCount = MAX_TEXTURES;
+                        if (textureCount === MAX_TEXTURES) {
+                            textureCount = 0;
+                            currentGroup.size = i - currentGroup.start;
+                            currentGroup = groups[groupCount++];
+                            currentGroup.textureCount = 0;
+                            currentGroup.blend = blendMode;
+                            currentGroup.start = i;
+                            currentGroup.uniforms = currentUniforms;
                         }
+                        nextTexture._virtalBoundId = textureCount;
+                        currentGroup.textureCount = MAX_TEXTURES;
+                        currentGroup.textures[0] = nextTexture;
+                        currentGroup.textures[1] = nextMaskTexture || PIXI.Texture.WHITE.baseTexture;
+                        textureCount = MAX_TEXTURES;
                     }
                     this.fillVertices(float32View, uint32View, index, sprite, nextTexture._virtalBoundId);
                     index += this.vertSize * 4;
