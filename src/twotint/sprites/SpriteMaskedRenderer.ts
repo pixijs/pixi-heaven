@@ -193,6 +193,8 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 						currentGroup.textures[1] = nextMaskTexture;
 					} else {
 						currentTexture = null;
+                        currentMaskTexture = null;
+                        TICK++;
 					}
 				}
 
