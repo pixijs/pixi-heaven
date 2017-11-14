@@ -262,8 +262,6 @@ var pixi_heaven;
                 var groupCount = 1;
                 var textureCount = 0;
                 var currentGroup = groups[0];
-                var vertexData;
-                var uvs;
                 var blendMode = premultiplyBlendMode[sprites[0]._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
                 currentGroup.textureCount = 0;
                 currentGroup.start = 0;
@@ -333,6 +331,7 @@ var pixi_heaven;
                     }
                     for (var j = 0; j < groupTextureCount; j++) {
                         this.renderer.bindTexture(group.textures[j], j, true);
+                        group.textures[j]._virtalBoundId = -1;
                         var v = this.shader.uniforms.samplerSize;
                         if (v) {
                             v[0] = group.textures[j].realWidth;
@@ -2283,8 +2282,6 @@ var pixi_heaven;
                 var groupCount = 1;
                 var textureCount = 0;
                 var currentGroup = groups[0];
-                var vertexData;
-                var uvs;
                 var blendMode = premultiplyBlendMode[sprites[0]._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
                 currentGroup.textureCount = 0;
                 currentGroup.start = 0;
@@ -2366,6 +2363,7 @@ var pixi_heaven;
                     }
                     for (var j = 0; j < groupTextureCount; j++) {
                         this.renderer.bindTexture(group.textures[j], j, true);
+                        group.textures[j]._virtalBoundId = -1;
                         var v = this.shader.uniforms.samplerSize;
                         if (v) {
                             v[0] = group.textures[j].realWidth;

@@ -158,8 +158,6 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 			let groupCount = 1;
 			let textureCount = 0;
 			let currentGroup = groups[0];
-			let vertexData;
-			let uvs;
 			let blendMode = premultiplyBlendMode[
 				(sprites[0] as any)._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
 
@@ -287,6 +285,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 
 				for (let j = 0; j < groupTextureCount; j++) {
 					this.renderer.bindTexture(group.textures[j], j, true);
+					group.textures[j]._virtalBoundId = -1;
 
 					const v = this.shader.uniforms.samplerSize;
 					if (v) {
