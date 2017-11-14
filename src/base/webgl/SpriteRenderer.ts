@@ -20,7 +20,7 @@ namespace pixi_heaven.webgl {
 
 	import premultiplyBlendMode = PIXI.utils.premultiplyBlendMode;
 
-	let TICK = 0;
+	let TICK = 1 << 20;
 
 	export class BatchGroup {
 		textures: Array<BaseTexture> = [];

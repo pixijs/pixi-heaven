@@ -6,8 +6,6 @@ namespace pixi_heaven.webgl {
 	import settings = PIXI.settings;
 	import premultiplyBlendMode = PIXI.utils.premultiplyBlendMode;
 
-	let TICK = 0;
-
 	const tempArray = new Float32Array([0, 0, 0, 0]);
 
 	class SpriteMaskedRenderer extends MultiTextureSpriteRenderer {
@@ -100,7 +98,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 			const stride = this.vertSize;
 
 			const mask = sprite.maskSprite;
-			let clamp : any = tempArray;
+			let clamp: any = tempArray;
 			let maskVertexData = tempArray;
 
 			if (mask) {
@@ -155,7 +153,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 
 			let index = 0;
 			let nextTexture: any, nextMaskTexture: any;
-			let currentTexture: BaseTexture  = null, currentMaskTexture: BaseTexture = null;
+			let currentTexture: BaseTexture = null, currentMaskTexture: BaseTexture = null;
 			let currentUniforms: any = null;
 			let groupCount = 1;
 			let textureCount = 0;
@@ -168,8 +166,6 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 			currentGroup.textureCount = 0;
 			currentGroup.start = 0;
 			currentGroup.blend = blendMode;
-
-			TICK++;
 
 			let i;
 
@@ -193,8 +189,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 						currentGroup.textures[1] = nextMaskTexture;
 					} else {
 						currentTexture = null;
-                        currentMaskTexture = null;
-                        TICK++;
+						currentMaskTexture = null;
 					}
 				}
 
@@ -208,7 +203,6 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 					currentTexture = null;
 					currentMaskTexture = null;
 					textureCount = MAX_TEXTURES;
-					TICK++;
 				}
 
 				const uniforms = this.getUniforms(sprite);
@@ -218,36 +212,32 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 					currentTexture = null;
 					currentMaskTexture = null;
 					textureCount = MAX_TEXTURES;
-					TICK++;
 				}
 
 				if (currentTexture !== nextTexture) {
 					currentTexture = nextTexture;
 					currentMaskTexture = nextMaskTexture;
 
-					if (nextTexture._enabled !== TICK) {
-						if (textureCount === MAX_TEXTURES) {
-							TICK++;
+					if (textureCount === MAX_TEXTURES) {
 
-							textureCount = 0;
+						textureCount = 0;
 
-							currentGroup.size = i - currentGroup.start;
+						currentGroup.size = i - currentGroup.start;
 
-							currentGroup = groups[groupCount++];
-							currentGroup.textureCount = 0;
-							currentGroup.blend = blendMode;
-							currentGroup.start = i;
-							currentGroup.uniforms = currentUniforms;
-						}
-
-						nextTexture._enabled = TICK;
-						nextTexture._virtalBoundId = textureCount;
-
-						currentGroup.textureCount = MAX_TEXTURES;
-						currentGroup.textures[0] = nextTexture;
-						currentGroup.textures[1] = nextMaskTexture || PIXI.Texture.WHITE.baseTexture;
-						textureCount = MAX_TEXTURES;
+						currentGroup = groups[groupCount++];
+						currentGroup.textureCount = 0;
+						currentGroup.blend = blendMode;
+						currentGroup.start = i;
+						currentGroup.uniforms = currentUniforms;
 					}
+
+					//nextTexture._enabled = TICK;
+					nextTexture._virtalBoundId = textureCount;
+
+					currentGroup.textureCount = MAX_TEXTURES;
+					currentGroup.textures[0] = nextTexture;
+					currentGroup.textures[1] = nextMaskTexture || PIXI.Texture.WHITE.baseTexture;
+					textureCount = MAX_TEXTURES;
 				}
 
 				this.fillVertices(float32View, uint32View, index, sprite, nextTexture._virtalBoundId);
