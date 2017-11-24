@@ -1,4 +1,11 @@
+///<reference types="webgl-ext"/>
+
 module pixi_heaven {
+    export interface Extensions {
+        depthTexture: WebGLDepthTexture;
+        floatTexture: OESTextureFloat;
+    }
+
 	export class AtlasManager {
 		/**
 		 * A reference to the current renderer
@@ -14,6 +21,8 @@ module pixi_heaven {
 		 */
 		gl: WebGLRenderingContext;
 
+		extensions: Extensions = null;
+
 		constructor(renderer: PIXI.WebGLRenderer) {
 			this.renderer = renderer;
 
@@ -23,7 +32,13 @@ module pixi_heaven {
 		onContextChange = (gl: WebGLRenderingContext) => {
 			this.gl = gl;
 			this.renderer.textureManager.updateTexture = this.updateTexture;
+
+			this.extensions = {
+                depthTexture: gl.getExtension('WEBKIT_WEBGL_depth_texture'),
+                floatTexture: gl.getExtension('OES_texture_float'),
+			};
 		};
+
 
 		//TODO: make boundTextures faster?
 

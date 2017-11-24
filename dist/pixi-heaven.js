@@ -80,6 +80,118 @@ var pixi_heaven;
 PIXI.heaven = pixi_heaven;
 var pixi_heaven;
 (function (pixi_heaven) {
+    var Rectangle = PIXI.Rectangle;
+    var INF = 1 << 20;
+    var AtlasNode = (function () {
+        function AtlasNode() {
+            this.childs = [];
+            this.rect = new Rectangle(0, 0, INF, INF);
+            this.data = null;
+        }
+        AtlasNode.prototype.insert = function (atlasWidth, atlasHeight, width, height, data) {
+            if (this.childs.length > 0) {
+                var newNode = this.childs[0].insert(atlasWidth, atlasHeight, width, height, data);
+                if (newNode != null) {
+                    return newNode;
+                }
+                return this.childs[1].insert(atlasWidth, atlasHeight, width, height, data);
+            }
+            else {
+                var rect = this.rect;
+                if (this.data != null)
+                    return null;
+                var w = Math.min(rect.width, atlasWidth - rect.x);
+                if (width > rect.width ||
+                    width > atlasWidth - rect.x ||
+                    height > rect.height ||
+                    height > atlasHeight - rect.y)
+                    return null;
+                if (width == rect.width && height == rect.height) {
+                    this.data = data;
+                    return this;
+                }
+                this.childs.push(new AtlasNode());
+                this.childs.push(new AtlasNode());
+                var dw = rect.width - width;
+                var dh = rect.height - height;
+                if (dw > dh) {
+                    this.childs[0].rect = new Rectangle(rect.x, rect.y, width, rect.height);
+                    this.childs[1].rect = new Rectangle(rect.x + width, rect.y, rect.width - width, rect.height);
+                }
+                else {
+                    this.childs[0].rect = new Rectangle(rect.x, rect.y, rect.width, height);
+                    this.childs[1].rect = new Rectangle(rect.x, rect.y + height, rect.width, rect.height - height);
+                }
+                return this.childs[0].insert(atlasWidth, atlasHeight, width, height, data);
+            }
+        };
+        return AtlasNode;
+    }());
+    pixi_heaven.AtlasNode = AtlasNode;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var AtlasEntry = (function () {
+        function AtlasEntry(atlas, baseTexture) {
+            this.nodeUpdateID = 0;
+            this.regions = [];
+            this.baseTexture = baseTexture;
+            this.width = baseTexture.width;
+            this.height = baseTexture.height;
+            this.atlas = atlas;
+        }
+        return AtlasEntry;
+    }());
+    pixi_heaven.AtlasEntry = AtlasEntry;
+})(pixi_heaven || (pixi_heaven = {}));
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+var pixi_heaven;
+(function (pixi_heaven) {
+    var Texture = PIXI.Texture;
+    var Rectangle = PIXI.Rectangle;
+    var TextureRegion = (function (_super) {
+        __extends(TextureRegion, _super);
+        function TextureRegion(entry, texture) {
+            if (texture === void 0) { texture = new Texture(entry.baseTexture); }
+            var _this = _super.call(this, entry.currentAtlas ? entry.currentAtlas.baseTexture : texture.baseTexture, entry.currentNode ? new Rectangle(texture.frame.x + entry.currentNode.rect.x, texture.frame.y + entry.currentNode.rect.y, texture.frame.width, texture.frame.height) : texture.frame.clone(), texture.orig, texture.trim, texture.rotate) || this;
+            _this.uid = PIXI.utils.uid();
+            _this.proxied = texture;
+            _this.entry = entry;
+            return _this;
+        }
+        TextureRegion.prototype.updateFrame = function () {
+            var texture = this.proxied;
+            var entry = this.entry;
+            var frame = this._frame;
+            if (entry.currentNode) {
+                this.baseTexture = entry.currentAtlas.baseTexture;
+                frame.x = texture.frame.x + entry.currentNode.rect.x;
+                frame.y = texture.frame.y + entry.currentNode.rect.y;
+            }
+            else {
+                this.baseTexture = texture.baseTexture;
+                frame.x = texture.frame.x;
+                frame.y = texture.frame.y;
+            }
+            frame.width = texture.frame.width;
+            frame.height = texture.frame.height;
+            this._updateUvs();
+        };
+        return TextureRegion;
+    }(PIXI.Texture));
+    pixi_heaven.TextureRegion = TextureRegion;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
     var webgl;
     (function (webgl) {
         var BatchBuffer = (function () {
@@ -134,16 +246,6 @@ var pixi_heaven;
         }
     })(webgl = pixi_heaven.webgl || (pixi_heaven.webgl = {}));
 })(pixi_heaven || (pixi_heaven = {}));
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
 var pixi_heaven;
 (function (pixi_heaven) {
     var webgl;
@@ -388,114 +490,17 @@ var pixi_heaven;
 })(pixi_heaven || (pixi_heaven = {}));
 var pixi_heaven;
 (function (pixi_heaven) {
-    var Rectangle = PIXI.Rectangle;
-    var INF = 1 << 20;
-    var AtlasNode = (function () {
-        function AtlasNode() {
-            this.childs = [];
-            this.rect = new Rectangle(0, 0, INF, INF);
-            this.data = null;
-        }
-        AtlasNode.prototype.insert = function (atlasWidth, atlasHeight, width, height, data) {
-            if (this.childs.length > 0) {
-                var newNode = this.childs[0].insert(atlasWidth, atlasHeight, width, height, data);
-                if (newNode != null) {
-                    return newNode;
-                }
-                return this.childs[1].insert(atlasWidth, atlasHeight, width, height, data);
-            }
-            else {
-                var rect = this.rect;
-                if (this.data != null)
-                    return null;
-                var w = Math.min(rect.width, atlasWidth - rect.x);
-                if (width > rect.width ||
-                    width > atlasWidth - rect.x ||
-                    height > rect.height ||
-                    height > atlasHeight - rect.y)
-                    return null;
-                if (width == rect.width && height == rect.height) {
-                    this.data = data;
-                    return this;
-                }
-                this.childs.push(new AtlasNode());
-                this.childs.push(new AtlasNode());
-                var dw = rect.width - width;
-                var dh = rect.height - height;
-                if (dw > dh) {
-                    this.childs[0].rect = new Rectangle(rect.x, rect.y, width, rect.height);
-                    this.childs[1].rect = new Rectangle(rect.x + width, rect.y, rect.width - width, rect.height);
-                }
-                else {
-                    this.childs[0].rect = new Rectangle(rect.x, rect.y, rect.width, height);
-                    this.childs[1].rect = new Rectangle(rect.x, rect.y + height, rect.width, rect.height - height);
-                }
-                return this.childs[0].insert(atlasWidth, atlasHeight, width, height, data);
-            }
-        };
-        return AtlasNode;
-    }());
-    pixi_heaven.AtlasNode = AtlasNode;
-})(pixi_heaven || (pixi_heaven = {}));
-var pixi_heaven;
-(function (pixi_heaven) {
-    var AtlasEntry = (function () {
-        function AtlasEntry(atlas, baseTexture) {
-            this.nodeUpdateID = 0;
-            this.regions = [];
-            this.baseTexture = baseTexture;
-            this.width = baseTexture.width;
-            this.height = baseTexture.height;
-            this.atlas = atlas;
-        }
-        return AtlasEntry;
-    }());
-    pixi_heaven.AtlasEntry = AtlasEntry;
-})(pixi_heaven || (pixi_heaven = {}));
-var pixi_heaven;
-(function (pixi_heaven) {
-    var Texture = PIXI.Texture;
-    var Rectangle = PIXI.Rectangle;
-    var TextureRegion = (function (_super) {
-        __extends(TextureRegion, _super);
-        function TextureRegion(entry, texture) {
-            if (texture === void 0) { texture = new Texture(entry.baseTexture); }
-            var _this = _super.call(this, entry.currentAtlas ? entry.currentAtlas.baseTexture : texture.baseTexture, entry.currentNode ? new Rectangle(texture.frame.x + entry.currentNode.rect.x, texture.frame.y + entry.currentNode.rect.y, texture.frame.width, texture.frame.height) : texture.frame.clone(), texture.orig, texture.trim, texture.rotate) || this;
-            _this.uid = PIXI.utils.uid();
-            _this.proxied = texture;
-            _this.entry = entry;
-            return _this;
-        }
-        TextureRegion.prototype.updateFrame = function () {
-            var texture = this.proxied;
-            var entry = this.entry;
-            var frame = this._frame;
-            if (entry.currentNode) {
-                this.baseTexture = entry.currentAtlas.baseTexture;
-                frame.x = texture.frame.x + entry.currentNode.rect.x;
-                frame.y = texture.frame.y + entry.currentNode.rect.y;
-            }
-            else {
-                this.baseTexture = texture.baseTexture;
-                frame.x = texture.frame.x;
-                frame.y = texture.frame.y;
-            }
-            frame.width = texture.frame.width;
-            frame.height = texture.frame.height;
-            this._updateUvs();
-        };
-        return TextureRegion;
-    }(PIXI.Texture));
-    pixi_heaven.TextureRegion = TextureRegion;
-})(pixi_heaven || (pixi_heaven = {}));
-var pixi_heaven;
-(function (pixi_heaven) {
     var AtlasManager = (function () {
         function AtlasManager(renderer) {
             var _this = this;
+            this.extensions = null;
             this.onContextChange = function (gl) {
                 _this.gl = gl;
                 _this.renderer.textureManager.updateTexture = _this.updateTexture;
+                _this.extensions = {
+                    depthTexture: gl.getExtension('WEBKIT_WEBGL_depth_texture'),
+                    floatTexture: gl.getExtension('OES_texture_float'),
+                };
             };
             this.updateTexture = function (texture_, location) {
                 var tm = _this.renderer.textureManager;
@@ -1940,7 +1945,7 @@ var pixi_heaven;
         Object.defineProperty(ColorTransform.prototype, "tintBGR", {
             get: function () {
                 var light = this.light;
-                return (light[0] << 16) + (light[1] << 8) + (light[2] | 0);
+                return ((light[0] * 255) << 16) + ((light[1] * 255) << 8) + (light[2] * 255 | 0);
             },
             set: function (value) {
                 var light = this.light;

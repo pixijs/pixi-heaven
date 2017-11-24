@@ -1,4 +1,64 @@
 /// <reference types="pixi.js" />
+/// <reference types="webgl-ext" />
+declare module PIXI.heaven {
+    import Rectangle = PIXI.Rectangle;
+    class AtlasNode<T> {
+        childs: Array<AtlasNode<T>>;
+        rect: Rectangle;
+        data: T;
+        insert(atlasWidth: number, atlasHeight: number, width: number, height: number, data: T): AtlasNode<T>;
+    }
+}
+declare module PIXI.heaven {
+}
+declare module PIXI.heaven {
+    import BaseTexture = PIXI.BaseTexture;
+    import Texture = PIXI.Texture;
+    import WebGLRenderer = PIXI.WebGLRenderer;
+    class AtlasEntry {
+        baseTexture: BaseTexture;
+        atlas: IAtlas;
+        currentNode: AtlasNode<AtlasEntry>;
+        currentAtlas: SuperAtlas;
+        width: number;
+        height: number;
+        nodeUpdateID: number;
+        regions: Array<TextureRegion>;
+        constructor(atlas: IAtlas, baseTexture: BaseTexture);
+    }
+    interface IRepackResult {
+        failed: Array<AtlasEntry>;
+        apply(): void;
+    }
+    interface IAtlas {
+        add(texture: BaseTexture | Texture, swapCache?: boolean): TextureRegion;
+        addHash(textures: {
+            [key: string]: Texture;
+        }, swapCache?: boolean): {
+            [key: string]: TextureRegion;
+        };
+        repack(): IRepackResult;
+        prepare(renderer: WebGLRenderer): Promise<void>;
+    }
+}
+declare module PIXI.heaven {
+    import Texture = PIXI.Texture;
+    class TextureRegion extends PIXI.Texture {
+        uid: number;
+        proxied: Texture;
+        entry: AtlasEntry;
+        constructor(entry: AtlasEntry, texture?: PIXI.Texture);
+        updateFrame(): void;
+    }
+}
+declare module PIXI.heaven {
+    interface ITextureResource {
+        onTextureUpload(renderer: PIXI.WebGLRenderer, baseTexture: PIXI.BaseTexture, glTexture: PIXI.glCore.GLTexture): boolean;
+        onTextureTag?(baseTexture: PIXI.BaseTexture): void;
+        onTextureNew?(baseTexture: PIXI.BaseTexture): void;
+        onTextureDestroy?(baseTexture: PIXI.BaseTexture): boolean;
+    }
+}
 declare module PIXI.heaven.webgl {
     class BatchBuffer {
         vertices: ArrayBuffer;
@@ -71,68 +131,14 @@ declare module PIXI.heaven.webgl {
     }
 }
 declare module PIXI.heaven {
-    import Rectangle = PIXI.Rectangle;
-    class AtlasNode<T> {
-        childs: Array<AtlasNode<T>>;
-        rect: Rectangle;
-        data: T;
-        insert(atlasWidth: number, atlasHeight: number, width: number, height: number, data: T): AtlasNode<T>;
+    interface Extensions {
+        depthTexture: WebGLDepthTexture;
+        floatTexture: OESTextureFloat;
     }
-}
-declare module PIXI.heaven {
-}
-declare module PIXI.heaven {
-    import BaseTexture = PIXI.BaseTexture;
-    import Texture = PIXI.Texture;
-    import WebGLRenderer = PIXI.WebGLRenderer;
-    class AtlasEntry {
-        baseTexture: BaseTexture;
-        atlas: IAtlas;
-        currentNode: AtlasNode<AtlasEntry>;
-        currentAtlas: SuperAtlas;
-        width: number;
-        height: number;
-        nodeUpdateID: number;
-        regions: Array<TextureRegion>;
-        constructor(atlas: IAtlas, baseTexture: BaseTexture);
-    }
-    interface IRepackResult {
-        failed: Array<AtlasEntry>;
-        apply(): void;
-    }
-    interface IAtlas {
-        add(texture: BaseTexture | Texture, swapCache?: boolean): TextureRegion;
-        addHash(textures: {
-            [key: string]: Texture;
-        }, swapCache?: boolean): {
-            [key: string]: TextureRegion;
-        };
-        repack(): IRepackResult;
-        prepare(renderer: WebGLRenderer): Promise<void>;
-    }
-}
-declare module PIXI.heaven {
-    import Texture = PIXI.Texture;
-    class TextureRegion extends PIXI.Texture {
-        uid: number;
-        proxied: Texture;
-        entry: AtlasEntry;
-        constructor(entry: AtlasEntry, texture?: PIXI.Texture);
-        updateFrame(): void;
-    }
-}
-declare module PIXI.heaven {
-    interface ITextureResource {
-        onTextureUpload(renderer: PIXI.WebGLRenderer, baseTexture: PIXI.BaseTexture, glTexture: PIXI.glCore.GLTexture): boolean;
-        onTextureTag?(baseTexture: PIXI.BaseTexture): void;
-        onTextureNew?(baseTexture: PIXI.BaseTexture): void;
-        onTextureDestroy?(baseTexture: PIXI.BaseTexture): boolean;
-    }
-}
-declare module PIXI.heaven {
     class AtlasManager {
         renderer: PIXI.WebGLRenderer;
         gl: WebGLRenderingContext;
+        extensions: Extensions;
         constructor(renderer: PIXI.WebGLRenderer);
         onContextChange: (gl: WebGLRenderingContext) => void;
         updateTexture: (texture_: PIXI.BaseTexture | PIXI.Texture, location?: number) => any;
