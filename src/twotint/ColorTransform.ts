@@ -99,11 +99,11 @@ namespace pixi_heaven {
         }
 
         set tintBGR(value: number) {
-            const light = this.light;
-
-            light[0] = ((value >> 16) & 0xff) / 255.0;
-            light[1] = ((value >> 8) & 0xff) / 255.0;
-            light[2] = (value & 0xff) / 255.0;
+            this.setLight(
+                ((value >> 16) & 0xff) / 255.0,
+                ((value >> 8) & 0xff) / 255.0,
+                (value & 0xff) / 255.0
+            );
         }
 
         setLight(R: number, G: number, B: number) {
