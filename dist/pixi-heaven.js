@@ -1948,10 +1948,7 @@ var pixi_heaven;
                 return ((light[0] * 255) << 16) + ((light[1] * 255) << 8) + (light[2] * 255 | 0);
             },
             set: function (value) {
-                var light = this.light;
-                light[0] = ((value >> 16) & 0xff) / 255.0;
-                light[1] = ((value >> 8) & 0xff) / 255.0;
-                light[2] = (value & 0xff) / 255.0;
+                this.setLight(((value >> 16) & 0xff) / 255.0, ((value >> 8) & 0xff) / 255.0, (value & 0xff) / 255.0);
             },
             enumerable: true,
             configurable: true
