@@ -85,7 +85,12 @@ void main(void)
 			}
 
 			let glData = mesh._glDatas[renderer.CONTEXT_UID];
-
+			
+			
+			const isTrimmed = texture.trim && (texture.trim.width < texture.orig.width
+				|| texture.trim.height < texture.orig.height);
+			const shader = isTrimmed ? this.shaderTrim : this.shader;
+			
 			if (!glData) {
 				renderer.bindVao(null);
 
@@ -97,6 +102,8 @@ void main(void)
 					vao: null,
 					dirty: mesh.dirty,
 					indexDirty: mesh.indexDirty,
+					//ибо нужно, иначе NullPtrException
+					shader: shader,
 				};
 
 				// build the vao object that will render..
@@ -121,10 +128,6 @@ void main(void)
 			}
 
 			glData.vertexBuffer.upload(mesh.vertices);
-
-			const isTrimmed = texture.trim && (texture.trim.width < texture.orig.width
-				|| texture.trim.height < texture.orig.height);
-			const shader = isTrimmed ? this.shaderTrim : this.shader;
 
 			renderer.bindShader(shader);
 
