@@ -122,11 +122,9 @@ void main(void)
 
 			glData.vertexBuffer.upload(mesh.vertices);
 			
-			
 			const isTrimmed = texture.trim && (texture.trim.width < texture.orig.width
 				|| texture.trim.height < texture.orig.height);
 			const shader = isTrimmed ? this.shaderTrim : this.shader;
-			
 			
 			renderer.bindShader(shader);
 
