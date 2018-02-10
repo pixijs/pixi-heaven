@@ -85,7 +85,7 @@ void main(void)
 			}
 
 			let glData = mesh._glDatas[renderer.CONTEXT_UID];
-
+			
 			if (!glData) {
 				renderer.bindVao(null);
 
@@ -96,14 +96,14 @@ void main(void)
 					// build the vao object that will render..
 					vao: null,
 					dirty: mesh.dirty,
-					indexDirty: mesh.indexDirty,
+					indexDirty: mesh.indexDirty
 				};
 
 				// build the vao object that will render..
 				glData.vao = new glCore.VertexArrayObject(gl)
 					.addIndex(glData.indexBuffer)
-					.addAttribute(glData.vertexBuffer, glData.shader.attributes.aVertexPosition, gl.FLOAT, false, 2 * 4, 0)
-					.addAttribute(glData.uvBuffer, glData.shader.attributes.aTextureCoord, gl.FLOAT, false, 2 * 4, 0);
+					.addAttribute(glData.vertexBuffer, this.shader.attributes.aVertexPosition, gl.FLOAT, false, 2 * 4, 0)
+					.addAttribute(glData.uvBuffer, this.shader.attributes.aTextureCoord, gl.FLOAT, false, 2 * 4, 0);
 
 				mesh._glDatas[renderer.CONTEXT_UID] = glData;
 			}
@@ -121,33 +121,33 @@ void main(void)
 			}
 
 			glData.vertexBuffer.upload(mesh.vertices);
-
+			
 			const isTrimmed = texture.trim && (texture.trim.width < texture.orig.width
 				|| texture.trim.height < texture.orig.height);
 			const shader = isTrimmed ? this.shaderTrim : this.shader;
-
+			
 			renderer.bindShader(shader);
 
-			glData.shader.uniforms.uSampler = renderer.bindTexture(texture);
+			shader.uniforms.uSampler = renderer.bindTexture(texture);
 
 			renderer.state.setBlendMode(utils.correctBlendMode(mesh.blendMode, texture.baseTexture.premultipliedAlpha));
 
-			if (glData.shader.uniforms.uTransform) {
+			if (shader.uniforms.uTransform) {
 				if (mesh.uploadUvTransform) {
-					glData.shader.uniforms.uTransform = (mesh._uvTransform as any).mapCoord.toArray(true);
+					shader.uniforms.uTransform = (mesh._uvTransform as any).mapCoord.toArray(true);
 				}
 				else {
-					glData.shader.uniforms.uTransform = matrixIdentity.toArray(true);
+					shader.uniforms.uTransform = matrixIdentity.toArray(true);
 				}
 			}
 			if (isTrimmed)
 			{
 				shader.uniforms.uClampFrame = (mesh._uvTransform as any).uClampFrame;
 			}
-			glData.shader.uniforms.translationMatrix = mesh.worldTransform.toArray(true);
+			shader.uniforms.translationMatrix = mesh.worldTransform.toArray(true);
 
-			glData.shader.uniforms.uLight = mesh.color.light;
-			glData.shader.uniforms.uDark = mesh.color.dark;
+			shader.uniforms.uLight = mesh.color.light;
+			shader.uniforms.uDark = mesh.color.dark;
 
 			const drawMode = mesh.drawMode === Mesh.DRAW_MODES.TRIANGLE_MESH ? gl.TRIANGLE_STRIP : gl.TRIANGLES;
 
