@@ -1504,12 +1504,12 @@ var pixi_heaven;
                         indexBuffer: glCore.GLBuffer.createIndexBuffer(gl, mesh.indices, gl.STATIC_DRAW),
                         vao: null,
                         dirty: mesh.dirty,
-                        indexDirty: mesh.indexDirty,
+                        indexDirty: mesh.indexDirty
                     };
                     glData.vao = new glCore.VertexArrayObject(gl)
                         .addIndex(glData.indexBuffer)
-                        .addAttribute(glData.vertexBuffer, glData.shader.attributes.aVertexPosition, gl.FLOAT, false, 2 * 4, 0)
-                        .addAttribute(glData.uvBuffer, glData.shader.attributes.aTextureCoord, gl.FLOAT, false, 2 * 4, 0);
+                        .addAttribute(glData.vertexBuffer, this.shader.attributes.aVertexPosition, gl.FLOAT, false, 2 * 4, 0)
+                        .addAttribute(glData.uvBuffer, this.shader.attributes.aTextureCoord, gl.FLOAT, false, 2 * 4, 0);
                     mesh._glDatas[renderer.CONTEXT_UID] = glData;
                 }
                 renderer.bindVao(glData.vao);
@@ -1526,22 +1526,22 @@ var pixi_heaven;
                     || texture.trim.height < texture.orig.height);
                 var shader = isTrimmed ? this.shaderTrim : this.shader;
                 renderer.bindShader(shader);
-                glData.shader.uniforms.uSampler = renderer.bindTexture(texture);
+                shader.uniforms.uSampler = renderer.bindTexture(texture);
                 renderer.state.setBlendMode(utils.correctBlendMode(mesh.blendMode, texture.baseTexture.premultipliedAlpha));
-                if (glData.shader.uniforms.uTransform) {
+                if (shader.uniforms.uTransform) {
                     if (mesh.uploadUvTransform) {
-                        glData.shader.uniforms.uTransform = mesh._uvTransform.mapCoord.toArray(true);
+                        shader.uniforms.uTransform = mesh._uvTransform.mapCoord.toArray(true);
                     }
                     else {
-                        glData.shader.uniforms.uTransform = matrixIdentity.toArray(true);
+                        shader.uniforms.uTransform = matrixIdentity.toArray(true);
                     }
                 }
                 if (isTrimmed) {
                     shader.uniforms.uClampFrame = mesh._uvTransform.uClampFrame;
                 }
-                glData.shader.uniforms.translationMatrix = mesh.worldTransform.toArray(true);
-                glData.shader.uniforms.uLight = mesh.color.light;
-                glData.shader.uniforms.uDark = mesh.color.dark;
+                shader.uniforms.translationMatrix = mesh.worldTransform.toArray(true);
+                shader.uniforms.uLight = mesh.color.light;
+                shader.uniforms.uDark = mesh.color.dark;
                 var drawMode = mesh.drawMode === mesh_1.Mesh.DRAW_MODES.TRIANGLE_MESH ? gl.TRIANGLE_STRIP : gl.TRIANGLES;
                 glData.vao.draw(drawMode, mesh.indices.length, 0);
             };

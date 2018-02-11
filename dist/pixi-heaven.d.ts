@@ -1,6 +1,22 @@
 /// <reference types="pixi.js" />
 /// <reference types="webgl-ext" />
-declare module PIXI.heaven {
+/// <reference types="pixi-spine" />
+declare module PIXI.loaders {
+    interface Resource {
+        spritesheet?: PIXI.Spritesheet;
+    }
+}
+declare namespace pixi_heaven {
+    import Resource = PIXI.loaders.Resource;
+    function atlasChecker(): (resource: Resource, next: () => any) => any;
+}
+declare namespace pixi_heaven.utils {
+    function createIndicesForQuads(size: number): Uint16Array;
+    function isPow2(v: number): boolean;
+    function nextPow2(v: number): number;
+    function log2(v: number): number;
+}
+declare namespace pixi_heaven {
     import Rectangle = PIXI.Rectangle;
     class AtlasNode<T> {
         childs: Array<AtlasNode<T>>;
@@ -9,9 +25,9 @@ declare module PIXI.heaven {
         insert(atlasWidth: number, atlasHeight: number, width: number, height: number, data: T): AtlasNode<T>;
     }
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
     import BaseTexture = PIXI.BaseTexture;
     import Texture = PIXI.Texture;
     import WebGLRenderer = PIXI.WebGLRenderer;
@@ -41,7 +57,7 @@ declare module PIXI.heaven {
         prepare(renderer: WebGLRenderer): Promise<void>;
     }
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
     import Texture = PIXI.Texture;
     class TextureRegion extends PIXI.Texture {
         uid: number;
@@ -51,7 +67,7 @@ declare module PIXI.heaven {
         updateFrame(): void;
     }
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
     interface ITextureResource {
         onTextureUpload(renderer: PIXI.WebGLRenderer, baseTexture: PIXI.BaseTexture, glTexture: PIXI.glCore.GLTexture): boolean;
         onTextureTag?(baseTexture: PIXI.BaseTexture): void;
@@ -59,7 +75,7 @@ declare module PIXI.heaven {
         onTextureDestroy?(baseTexture: PIXI.BaseTexture): boolean;
     }
 }
-declare module PIXI.heaven.webgl {
+declare namespace pixi_heaven.webgl {
     class BatchBuffer {
         vertices: ArrayBuffer;
         float32View: Float32Array;
@@ -68,7 +84,7 @@ declare module PIXI.heaven.webgl {
         destroy(): void;
     }
 }
-declare module PIXI.heaven.webgl {
+declare namespace pixi_heaven.webgl {
     function generateMultiTextureShader(vertexSrc: string, fragmentSrc: string, gl: WebGLRenderingContext, maxTextures: number): PIXI.Shader;
 }
 declare module PIXI {
@@ -79,7 +95,7 @@ declare module PIXI {
         _virtalBoundId: number;
     }
 }
-declare module PIXI.heaven.webgl {
+declare namespace pixi_heaven.webgl {
     import BaseTexture = PIXI.BaseTexture;
     import ObjectRenderer = PIXI.ObjectRenderer;
     import GLBuffer = PIXI.glCore.GLBuffer;
@@ -130,7 +146,7 @@ declare module PIXI.heaven.webgl {
         destroy(): void;
     }
 }
-declare module PIXI.heaven {
+declare module pixi_heaven {
     interface Extensions {
         depthTexture: WebGLDepthTexture;
         floatTexture: OESTextureFloat;
@@ -141,7 +157,7 @@ declare module PIXI.heaven {
         extensions: Extensions;
         constructor(renderer: PIXI.WebGLRenderer);
         onContextChange: (gl: WebGLRenderingContext) => void;
-        updateTexture: (texture_: PIXI.BaseTexture | PIXI.Texture, location?: number) => any;
+        updateTexture: (texture_: PIXI.Texture | PIXI.BaseTexture, location?: number) => any;
         setStyle(texture: PIXI.BaseTexture, glTexture: PIXI.glCore.GLTexture): void;
         destroy(): void;
     }
@@ -151,7 +167,7 @@ declare module PIXI {
         uid: number;
         _updateID: number;
         _mips: Array<ImageData>;
-        resource: PIXI.heaven.ITextureResource;
+        resource: pixi_heaven.ITextureResource;
         forceUploadStyle: boolean;
         generateMips(levels: number): void;
     }
@@ -160,7 +176,7 @@ declare module PIXI {
         generateMips(levels: number): void;
     }
 }
-declare module PIXI.heaven {
+declare module pixi_heaven {
 }
 declare module PIXI {
     namespace GroupD8 {
@@ -171,7 +187,7 @@ declare module PIXI {
     interface BaseTexture {
         uid: number;
         _updateID: number;
-        resource: PIXI.heaven.ITextureResource;
+        resource: pixi_heaven.ITextureResource;
         forceUploadStyle: boolean;
     }
     interface BaseRenderTexture {
@@ -183,18 +199,9 @@ declare module PIXI.glCore {
         _updateID: number;
     }
 }
-declare module PIXI.heaven {
+declare module pixi_heaven {
 }
-declare module PIXI.loaders {
-    interface Resource {
-        spritesheet?: PIXI.Spritesheet;
-    }
-}
-declare module PIXI.heaven {
-    import Resource = PIXI.loaders.Resource;
-    function atlasChecker(): (resource: Resource, next: () => any) => any;
-}
-declare module PIXI.heaven.mesh {
+declare namespace pixi_heaven.mesh {
     class Mesh extends PIXI.Container {
         _texture: PIXI.Texture;
         uvs: Float32Array;
@@ -231,7 +238,7 @@ declare module PIXI.heaven.mesh {
         };
     }
 }
-declare module PIXI.heaven.mesh {
+declare namespace pixi_heaven.mesh {
     class Plane extends Mesh {
         _verticesX: number;
         _verticesY: number;
@@ -269,7 +276,7 @@ declare module PIXI.heaven.mesh {
         reset(): void;
     }
 }
-declare module PIXI.heaven.mesh {
+declare namespace pixi_heaven.mesh {
     class NineSlicePlane extends Plane {
         _leftWidth: number;
         _rightWidth: number;
@@ -288,7 +295,7 @@ declare module PIXI.heaven.mesh {
         drawSegment(context: CanvasRenderingContext2D, textureSource: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement, w: number, h: number, x1: number, y1: number, x2: number, y2: number): void;
     }
 }
-declare module PIXI.heaven.mesh {
+declare namespace pixi_heaven.mesh {
     class Rope extends Plane {
         points: Array<RopePoint>;
         calculatedPoints: Array<RopePoint>;
@@ -305,7 +312,7 @@ declare module PIXI.heaven.mesh {
         calcVertices(): void;
     }
 }
-declare module PIXI.heaven.mesh {
+declare namespace pixi_heaven.mesh {
     class RopePoint extends PIXI.Point {
         offset: number;
         scale: number;
@@ -315,7 +322,7 @@ declare module PIXI.heaven.mesh {
         set(x: number, y: number, offset?: number, scale?: number): void;
     }
 }
-declare module PIXI.heaven.mesh {
+declare namespace pixi_heaven.mesh {
     class MeshHeavenRenderer extends PIXI.ObjectRenderer {
         static vert: string;
         static frag: string;
@@ -326,7 +333,7 @@ declare module PIXI.heaven.mesh {
         render(mesh: Mesh): void;
     }
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
     interface IAtlasOptions {
         width?: number;
         height?: number;
@@ -356,7 +363,7 @@ declare module PIXI.heaven {
         assign(src: IAtlasOptions): this;
     }
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
     import BaseTexture = PIXI.BaseTexture;
     class SuperAtlasEntry {
         baseTexture: BaseTexture;
@@ -401,7 +408,7 @@ declare module PIXI.heaven {
         onTextureUpload(renderer: PIXI.WebGLRenderer, baseTexture: PIXI.BaseTexture, tex: PIXI.glCore.GLTexture): boolean;
     }
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
     class ColorTransform {
         dark: Float32Array;
         light: Float32Array;
@@ -429,7 +436,7 @@ declare module PIXI.heaven {
 }
 declare module PIXI {
     interface Sprite {
-        convertToHeaven(): PIXI.heaven.Sprite;
+        convertToHeaven(): pixi_heaven.Sprite;
     }
     interface Mesh {
         convertToHeaven(): void;
@@ -442,9 +449,9 @@ declare module PIXI {
         convertSubtreeToHeaven(): void;
     }
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
     class Sprite extends PIXI.Sprite {
         color: ColorTransform;
         maskSprite: PIXI.Sprite;
@@ -457,23 +464,17 @@ declare module PIXI.heaven {
         calculateMaskVertices(): void;
     }
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
 }
-declare module PIXI.heaven.webgl {
+declare namespace pixi_heaven.webgl {
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
     class SpriteModel {
     }
 }
-declare module PIXI.heaven {
+declare namespace pixi_heaven {
 }
-declare module PIXI.heaven.utils {
-    function createIndicesForQuads(size: number): Uint16Array;
-    function isPow2(v: number): boolean;
-    function nextPow2(v: number): number;
-    function log2(v: number): number;
-}
-declare module PIXI.heaven.spine {
+declare namespace pixi_heaven.spine {
     class Spine extends PIXI.spine.Spine {
         hasSpriteMask: boolean;
         color: ColorTransform;
