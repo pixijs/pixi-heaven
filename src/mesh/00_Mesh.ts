@@ -37,6 +37,13 @@ namespace pixi_heaven.mesh {
 		indices: Uint16Array;
 
 		/**
+		 * Two colors per vertex: dark, light. Please fill with 0x0 and 0xffffffff by default.
+		 *
+		 * @member {Uint32Array}
+		 */
+		colors: Uint32Array;
+
+		/**
 		 * The way the Mesh should be drawn, can be any of the {@link PIXI.mesh.Mesh.DRAW_MODES} consts
 		 *
 		 * @member {number}
@@ -90,7 +97,7 @@ namespace pixi_heaven.mesh {
 		 * @private
 		 * @member {object<number, object>}
 		 */
-		_glDatas : {[key: number]: any} = {};
+		_glDatas: { [key: number]: any } = {};
 
 		/**
 		 * whether or not upload uvTransform to shader
@@ -114,10 +121,10 @@ namespace pixi_heaven.mesh {
 		 * its updated independently from texture uvTransform
 		 * updates of uvs are tied to that thing
 		 *
-		 * @member {PIXI.extras.TextureTransform}
+		 * @member {PIXI.TextureMatrix}
 		 * @private
 		 */
-		_uvTransform: PIXI.extras.TextureTransform;
+		_uvTransform: PIXI.TextureMatrix;
 
 		/**
 		 * @param {PIXI.Texture} texture - The texture to use
@@ -150,6 +157,8 @@ namespace pixi_heaven.mesh {
 			//  TODO auto generate this based on draw mode!
 			this.indices = indices || new Uint16Array([0, 1, 3, 2]);
 
+			this.colors = null;
+
 			this.drawMode = drawMode;
 
 			/**
@@ -157,10 +166,10 @@ namespace pixi_heaven.mesh {
 			 * its updated independently from texture uvTransform
 			 * updates of uvs are tied to that thing
 			 *
-			 * @member {PIXI.extras.TextureTransform}
+			 * @member {PIXI.TextureMatrix}
 			 * @private
 			 */
-			this._uvTransform = new PIXI.extras.TextureTransform(texture, 0);
+			this._uvTransform = new PIXI.TextureMatrix(texture, 0);
 		}
 
 		/**
@@ -182,12 +191,10 @@ namespace pixi_heaven.mesh {
 				this.color.updateTransform();
 			}
 
-			for (let i = 0, j = this.children.length; i < j; ++i)
-			{
+			for (let i = 0, j = this.children.length; i < j; ++i) {
 				const child = this.children[i];
 
-				if (child.visible)
-				{
+				if (child.visible) {
 					child.updateTransform();
 				}
 			}
@@ -330,6 +337,37 @@ namespace pixi_heaven.mesh {
 					value.once('update', this._onTextureUpdate, this);
 				}
 			}
+		}
+
+		enableColors() {
+			this.pluginName = 'meshColored';
+
+			const len = this.vertices.length / 2;
+			const colors = new Uint32Array(len * 2);
+
+			this.colors = colors;
+
+			for (let i = 0; i < len; i++) {
+				this.colors[i * 2] = 0;
+				this.colors[i * 2 + 1] = 0xffffffff;
+			}
+		}
+
+		/**
+		 * @param {Float32Array} rgb 3 * len numbers, RGB colors of mesh
+		 * @param {boolean} dark whether its dark or light tint
+		 */
+		setRGB(rgb: Float32Array, dark: boolean) {
+			const colors = this.colors;
+
+			let j = dark ? 0 : 1;
+			let a = dark ? 0 : (0xff << 24);
+			for (let i = 0; i < rgb.length; i += 3) {
+				colors[j] = a | ((rgb[i] * 255) << 16) | ((rgb[i+1] * 255) << 8) | ((rgb[i+2] * 255) << 0);
+				j+=2;
+			}
+
+			this.dirty++;
 		}
 
 		color = new ColorTransform();
