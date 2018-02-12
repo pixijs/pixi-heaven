@@ -100,6 +100,8 @@ Batching works with spine, just enable maskSprite in any sprite of spine instanc
 Please make sure everything is initialized, i didnt hook it up in refresh!!!
 see errors in console? make sure texture is initialized
 
+Look in [the code](https://github.com/gameofbombs/pixi-heaven/blob/master/src/mesh/00_Mesh.ts#L342) for details.
+
 ```js
 var strip = new PIXI.heaven.mesh.Rope(PIXI.Texture.fromImage('required/assets/snake.png'), 25, 2, 0);
 strip.enableColors();
