@@ -727,8 +727,9 @@ var pixi_heaven;
                     0, 100
                 ]);
                 _this.indices = indices || new Uint16Array([0, 1, 3, 2]);
+                _this.colors = null;
                 _this.drawMode = drawMode;
-                _this._uvTransform = new PIXI.extras.TextureTransform(texture, 0);
+                _this._uvTransform = new PIXI.TextureMatrix(texture, 0);
                 return _this;
             }
             Mesh.prototype.updateTransform = function () {
@@ -822,6 +823,26 @@ var pixi_heaven;
                 enumerable: true,
                 configurable: true
             });
+            Mesh.prototype.enableColors = function () {
+                this.pluginName = 'meshColored';
+                var len = this.vertices.length / 2;
+                var colors = new Uint32Array(len * 2);
+                this.colors = colors;
+                for (var i = 0; i < len; i++) {
+                    this.colors[i * 2] = 0;
+                    this.colors[i * 2 + 1] = 0xffffffff;
+                }
+            };
+            Mesh.prototype.setRGB = function (rgb, dark) {
+                var colors = this.colors;
+                var j = dark ? 0 : 1;
+                var a = dark ? 0 : (0xff << 24);
+                for (var i = 0; i < rgb.length; i += 3) {
+                    colors[j] = a | ((rgb[i] * 255) << 16) | ((rgb[i + 1] * 255) << 8) | ((rgb[i + 2] * 255) << 0);
+                    j += 2;
+                }
+                this.dirty++;
+            };
             Object.defineProperty(Mesh.prototype, "tint", {
                 get: function () {
                     return this.color ? this.color.tintBGR : 0xffffff;
@@ -1475,6 +1496,97 @@ var pixi_heaven;
         var glCore = PIXI.glCore;
         var utils = PIXI.utils;
         var matrixIdentity = PIXI.Matrix.IDENTITY;
+        var MeshColoredRenderer = (function (_super) {
+            __extends(MeshColoredRenderer, _super);
+            function MeshColoredRenderer() {
+                var _this = _super !== null && _super.apply(this, arguments) || this;
+                _this.shader = null;
+                _this.shaderTrim = null;
+                return _this;
+            }
+            MeshColoredRenderer.prototype.onContextChange = function () {
+                var gl = this.renderer.gl;
+                this.shader = new PIXI.Shader(gl, MeshColoredRenderer.vert, MeshColoredRenderer.frag);
+                this.shaderTrim = new PIXI.Shader(gl, MeshColoredRenderer.vert, MeshColoredRenderer.fragTrim);
+            };
+            MeshColoredRenderer.prototype.render = function (mesh) {
+                var renderer = this.renderer;
+                var gl = renderer.gl;
+                var texture = mesh._texture;
+                if (!texture.valid) {
+                    return;
+                }
+                var glData = mesh._glDatas[renderer.CONTEXT_UID];
+                if (!glData || !glData.colorBuffer) {
+                    renderer.bindVao(null);
+                    glData = {
+                        vertexBuffer: glCore.GLBuffer.createVertexBuffer(gl, mesh.vertices, gl.STREAM_DRAW),
+                        uvBuffer: glCore.GLBuffer.createVertexBuffer(gl, mesh.uvs, gl.STREAM_DRAW),
+                        colorBuffer: glCore.GLBuffer.createVertexBuffer(gl, mesh.colors, gl.STREAM_DRAW),
+                        indexBuffer: glCore.GLBuffer.createIndexBuffer(gl, mesh.indices, gl.STATIC_DRAW),
+                        vao: null,
+                        dirty: mesh.dirty,
+                        indexDirty: mesh.indexDirty
+                    };
+                    var attrs = this.shader.attributes;
+                    glData.vao = new glCore.VertexArrayObject(gl)
+                        .addIndex(glData.indexBuffer)
+                        .addAttribute(glData.vertexBuffer, attrs.aVertexPosition, gl.FLOAT, false, 2 * 4, 0)
+                        .addAttribute(glData.uvBuffer, attrs.aTextureCoord, gl.FLOAT, false, 2 * 4, 0)
+                        .addAttribute(glData.colorBuffer, attrs.aDark, gl.UNSIGNED_BYTE, true, 2 * 4, 0)
+                        .addAttribute(glData.colorBuffer, attrs.aLight, gl.UNSIGNED_BYTE, true, 2 * 4, 4);
+                    mesh._glDatas[renderer.CONTEXT_UID] = glData;
+                }
+                renderer.bindVao(glData.vao);
+                if (mesh.dirty !== glData.dirty) {
+                    glData.dirty = mesh.dirty;
+                    glData.uvBuffer.upload(mesh.uvs);
+                    glData.colorBuffer.upload(mesh.colors);
+                }
+                if (mesh.indexDirty !== glData.indexDirty) {
+                    glData.indexDirty = mesh.indexDirty;
+                    glData.indexBuffer.upload(mesh.indices);
+                }
+                glData.vertexBuffer.upload(mesh.vertices);
+                var isTrimmed = texture.trim && (texture.trim.width < texture.orig.width
+                    || texture.trim.height < texture.orig.height);
+                var shader = isTrimmed ? this.shaderTrim : this.shader;
+                renderer.bindShader(shader);
+                shader.uniforms.uSampler = renderer.bindTexture(texture);
+                renderer.state.setBlendMode(utils.correctBlendMode(mesh.blendMode, texture.baseTexture.premultipliedAlpha));
+                if (shader.uniforms.uTransform) {
+                    if (mesh.uploadUvTransform) {
+                        shader.uniforms.uTransform = mesh._uvTransform.mapCoord.toArray(true);
+                    }
+                    else {
+                        shader.uniforms.uTransform = matrixIdentity.toArray(true);
+                    }
+                }
+                if (isTrimmed) {
+                    shader.uniforms.uClampFrame = mesh._uvTransform.uClampFrame;
+                }
+                shader.uniforms.translationMatrix = mesh.worldTransform.toArray(true);
+                shader.uniforms.uLight = mesh.color.light;
+                shader.uniforms.uDark = mesh.color.dark;
+                var drawMode = mesh.drawMode === mesh_1.Mesh.DRAW_MODES.TRIANGLE_MESH ? gl.TRIANGLE_STRIP : gl.TRIANGLES;
+                glData.vao.draw(drawMode, mesh.indices.length, 0);
+            };
+            MeshColoredRenderer.vert = "\nattribute vec2 aVertexPosition;\nattribute vec2 aTextureCoord;\nattribute vec4 aDark;\nattribute vec4 aLight;\n\nuniform mat3 projectionMatrix;\nuniform mat3 translationMatrix;\nuniform mat3 uTransform;\nuniform vec4 uLight, uDark;\n\nvarying vec2 vTextureCoord;\nvarying vec4 vDark;\nvarying vec4 vLight;\n\nvoid main(void)\n{\n    gl_Position = vec4((projectionMatrix * translationMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);\n\n    vTextureCoord = (uTransform * vec3(aTextureCoord, 1.0)).xy;\n\n\tvLight.a = uLight.a * aLight.a;\n\tvDark.a = uDark.a;\n\t\n\tvLight.rgb = ((aLight.a - 1.0) * uDark.a + 1.0 - aLight.rgb) * uDark.rgb + aLight.rgb * uLight.rgb;\n\tvDark.rgb = ((aDark.a - 1.0) * uDark.a + 1.0 - aDark.rgb) * uDark.rgb + aDark.rgb * uLight.rgb;\n}\n";
+            MeshColoredRenderer.frag = "\nvarying vec2 vTextureCoord;\nvarying vec4 vLight, vDark;\n\nuniform sampler2D uSampler;\n\nvoid main(void)\n{\n    vec4 texColor = texture2D(uSampler, vTextureCoord);\n    gl_FragColor.a = texColor.a * vLight.a;\n\tgl_FragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.rgb + texColor.rgb * vLight.rgb;\n}\n";
+            MeshColoredRenderer.fragTrim = "\nvarying vec2 vTextureCoord;\nvarying vec4 vLight, vDark;\nuniform vec4 uClampFrame;\n\nuniform sampler2D uSampler;\n\nvoid main(void)\n{\n    vec2 coord = vTextureCoord;\n    if (coord.x < uClampFrame.x || coord.x > uClampFrame.z\n        || coord.y < uClampFrame.y || coord.y > uClampFrame.w)\n            discard;\n    vec4 texColor = texture2D(uSampler, vTextureCoord);\n    gl_FragColor.a = texColor.a * vLight.a;\n\tgl_FragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.rgb + texColor.rgb * vLight.rgb;\n}\n";
+            return MeshColoredRenderer;
+        }(PIXI.ObjectRenderer));
+        mesh_1.MeshColoredRenderer = MeshColoredRenderer;
+        PIXI.WebGLRenderer.registerPlugin('meshColored', MeshColoredRenderer);
+    })(mesh = pixi_heaven.mesh || (pixi_heaven.mesh = {}));
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    var mesh;
+    (function (mesh_2) {
+        var glCore = PIXI.glCore;
+        var utils = PIXI.utils;
+        var matrixIdentity = PIXI.Matrix.IDENTITY;
         var MeshHeavenRenderer = (function (_super) {
             __extends(MeshHeavenRenderer, _super);
             function MeshHeavenRenderer() {
@@ -1542,7 +1654,7 @@ var pixi_heaven;
                 shader.uniforms.translationMatrix = mesh.worldTransform.toArray(true);
                 shader.uniforms.uLight = mesh.color.light;
                 shader.uniforms.uDark = mesh.color.dark;
-                var drawMode = mesh.drawMode === mesh_1.Mesh.DRAW_MODES.TRIANGLE_MESH ? gl.TRIANGLE_STRIP : gl.TRIANGLES;
+                var drawMode = mesh.drawMode === mesh_2.Mesh.DRAW_MODES.TRIANGLE_MESH ? gl.TRIANGLE_STRIP : gl.TRIANGLES;
                 glData.vao.draw(drawMode, mesh.indices.length, 0);
             };
             MeshHeavenRenderer.vert = "\nattribute vec2 aVertexPosition;\nattribute vec2 aTextureCoord;\n\nuniform mat3 projectionMatrix;\nuniform mat3 translationMatrix;\nuniform mat3 uTransform;\n\nvarying vec2 vTextureCoord;\n\nvoid main(void)\n{\n    gl_Position = vec4((projectionMatrix * translationMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);\n\n    vTextureCoord = (uTransform * vec3(aTextureCoord, 1.0)).xy;\n}\n";
@@ -1550,7 +1662,7 @@ var pixi_heaven;
             MeshHeavenRenderer.fragTrim = "\nvarying vec2 vTextureCoord;\nuniform vec4 uLight, uDark;\nuniform vec4 uClampFrame;\n\nuniform sampler2D uSampler;\n\nvoid main(void)\n{\n    vec2 coord = vTextureCoord;\n    if (coord.x < uClampFrame.x || coord.x > uClampFrame.z\n        || coord.y < uClampFrame.y || coord.y > uClampFrame.w)\n            discard;\n    vec4 texColor = texture2D(uSampler, vTextureCoord);\n    gl_FragColor.a = texColor.a * uLight.a;\n\tgl_FragColor.rgb = ((texColor.a - 1.0) * uDark.a + 1.0 - texColor.rgb) * uDark.rgb + texColor.rgb * uLight.rgb;\n}\n";
             return MeshHeavenRenderer;
         }(PIXI.ObjectRenderer));
-        mesh_1.MeshHeavenRenderer = MeshHeavenRenderer;
+        mesh_2.MeshHeavenRenderer = MeshHeavenRenderer;
         PIXI.WebGLRenderer.registerPlugin('meshHeaven', MeshHeavenRenderer);
     })(mesh = pixi_heaven.mesh || (pixi_heaven.mesh = {}));
 })(pixi_heaven || (pixi_heaven = {}));

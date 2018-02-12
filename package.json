@@ -1,6 +1,6 @@
 {
   "name": "pixi-heaven",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "PIXI.js advanced color modes, sprites, meshes",
   "author": "Ivan Popelyshev",
   "contributors": [
@@ -53,7 +53,7 @@
     "typescript": "~2.4"
   },
   "dependencies": {
-    "@types/pixi.js": "^4.7.0",
+    "@types/pixi.js": "^4.5.3",
     "@types/webgl-ext": "^0.0.29",
     "pixi-spine": "^1.5.7"
   }

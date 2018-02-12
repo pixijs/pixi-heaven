@@ -200,6 +200,7 @@ declare module PIXI.heaven.mesh {
         uvs: Float32Array;
         vertices: Float32Array;
         indices: Uint16Array;
+        colors: Uint32Array;
         drawMode: number;
         dirty: number;
         indexDirty: number;
@@ -211,7 +212,7 @@ declare module PIXI.heaven.mesh {
         };
         uploadUvTransform: boolean;
         pluginName: string;
-        _uvTransform: PIXI.extras.TextureTransform;
+        _uvTransform: PIXI.TextureMatrix;
         constructor(texture?: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number);
         updateTransform(): void;
         _renderWebGL(renderer: PIXI.WebGLRenderer): void;
@@ -223,6 +224,8 @@ declare module PIXI.heaven.mesh {
         _calculateBounds(): void;
         containsPoint(point: PIXI.PointLike): boolean;
         texture: PIXI.Texture;
+        enableColors(): void;
+        setRGB(rgb: Float32Array, dark: boolean): void;
         color: ColorTransform;
         tint: number;
         static DRAW_MODES: {
@@ -313,6 +316,17 @@ declare module PIXI.heaven.mesh {
         clone(): RopePoint;
         copy(p: PIXI.Point | RopePoint): void;
         set(x: number, y: number, offset?: number, scale?: number): void;
+    }
+}
+declare module PIXI.heaven.mesh {
+    class MeshColoredRenderer extends PIXI.ObjectRenderer {
+        static vert: string;
+        static frag: string;
+        static fragTrim: string;
+        shader: PIXI.Shader;
+        shaderTrim: PIXI.Shader;
+        onContextChange(): void;
+        render(mesh: Mesh): void;
     }
 }
 declare module PIXI.heaven.mesh {
