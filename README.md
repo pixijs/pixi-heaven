@@ -95,6 +95,26 @@ sprite2.renderable = false; //turn off rendering
 
 Batching works with spine, just enable maskSprite in any sprite of spine instance.
 
+### How to use colored meshes
+
+Please make sure everything is initialized, i didnt hook it up in refresh!!!
+see errors in console? make sure texture is initialized
+
+```js
+var strip = new PIXI.heaven.mesh.Rope(PIXI.Texture.fromImage('required/assets/snake.png'), 25, 2, 0);
+strip.enableColors();
+
+//lets make it randomy!
+var len = strip.vertices.length / 2;
+var rgb = new Float32Array(len*3);
+//set light
+for (var i=0;i<len*3;i++) rgb[i] = 0.5 + Math.random() * 0.5;
+strip.setRGB(rgb);
+//set dark
+for (var i=0;i<len*3;i++) rgb[i] = Math.random() * 0.5;
+strip.setRGB(rgb, true);
+```
+
 ## Building
 
 You will need to have [node][node] setup on your machine.
