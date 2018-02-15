@@ -1466,14 +1466,19 @@ var pixi_heaven;
             Rope.prototype.calcColors = function () {
                 var colors = this.colors;
                 var points = this.points;
-                var h = this.verticesY;
+                var verticesX = this.verticesX;
+                var verticesY = this.verticesY;
                 var j = 0;
-                for (var i = 0; i < points.length; i++) {
+                for (var i = 0; i < verticesX; i++) {
                     var color = points[i].color;
-                    color.updateTransformLocal();
-                    for (var k = 0; k < h; k++) {
-                        colors[j++] = color.darkRgba;
-                        colors[j++] = color.lightRgba;
+                    if (color._currentUpdateID !== color._updateID) {
+                        color.updateTransformLocal();
+                        this.dirty++;
+                    }
+                    for (var j_1 = 0; j_1 < verticesY; j_1++) {
+                        var ind = (i + (j_1 * verticesX)) * 2;
+                        colors[ind] = color.darkRgba;
+                        colors[ind + 1] = color.lightRgba;
                     }
                 }
             };

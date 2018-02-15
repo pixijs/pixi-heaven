@@ -272,15 +272,20 @@ namespace pixi_heaven.mesh {
 			const colors = this.colors;
 			const points = this.points;
 
-			const h = this.verticesY;
+			const verticesX = this.verticesX;
+			const verticesY = this.verticesY;
 
 			let j = 0;
-			for (let i = 0; i < points.length; i++) {
+			for (let i = 0; i < verticesX; i++) {
 				const color = points[i].color;
-				color.updateTransformLocal();
-				for (let k = 0; k < h; k++) {
-					colors[j++] = color.darkRgba;
-					colors[j++] = color.lightRgba;
+				if (color._currentUpdateID !== color._updateID) {
+					color.updateTransformLocal();
+					this.dirty++;
+				}
+				for (let j = 0; j < verticesY; j++) {
+					const ind = (i + (j * verticesX)) * 2;
+					colors[ind] = color.darkRgba;
+					colors[ind + 1] = color.lightRgba;
 				}
 			}
 		}
