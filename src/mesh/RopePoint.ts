@@ -8,6 +8,7 @@ namespace pixi_heaven.mesh {
 	export class RopePoint extends PIXI.Point {
 		offset: number;
 		scale: number;
+		_color: ColorTransform;
 
 		/**
 		 * @param {number} [x=0] - position of the point on the x axis
@@ -27,6 +28,29 @@ namespace pixi_heaven.mesh {
 			 * @default 1.0
 			 */
 			this.scale = scale;
+
+			/**
+			 * Color transform
+			 * @type {pixi_heaven.ColorTransform}
+			 * @private
+			 */
+			this._color = null;
+		}
+
+		get color(): ColorTransform {
+			if (this._color === null) {
+				this._color = new ColorTransform();
+			}
+
+			return this._color;
+		}
+
+		set color(val: ColorTransform) {
+			if (typeof val === "number") {
+				this.color.tintBGR = val;
+			} else {
+				this.color = val;
+			}
 		}
 
 		/**

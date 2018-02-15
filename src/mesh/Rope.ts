@@ -1,5 +1,6 @@
 namespace pixi_heaven.mesh {
 	import GroupD8 = PIXI.GroupD8;
+
 	/**
 	 * The rope sprite allows you to hack a rope that behaves like a sprite
 	 *
@@ -262,6 +263,33 @@ namespace pixi_heaven.mesh {
 
 				lastPoint = point;
 			}
+		}
+
+		/**
+		 * calculate colors if present
+		 */
+		calcColors() {
+			const colors = this.colors;
+			const points = this.points;
+
+			const h = this.verticesY;
+
+			let j = 0;
+			for (let i = 0; i < points.length; i++) {
+				const color = points[i].color;
+				color.updateTransformLocal();
+				for (let k = 0; k < h; k++) {
+					colors[j++] = color.darkRgba;
+					colors[j++] = color.lightRgba;
+				}
+			}
+		}
+
+		enableColors() {
+			for (let i = 0; i < this.points.length; i++) {
+				this.points[i].color;
+			}
+			super.enableColors();
 		}
 	}
 }

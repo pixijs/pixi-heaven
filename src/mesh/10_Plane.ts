@@ -316,6 +316,13 @@ namespace pixi_heaven.mesh {
 			this.calculatedVertices = new Float32Array(total * 2);
 
 			this.indexDirty++;
+			if (this.colors) {
+				this.colors = new Uint32Array(total * 2);
+				for (let i = 0; i < total; i++) {
+					this.colors[i * 2] = 0;
+					this.colors[i * 2 + 1] = 0xffffffff;
+				}
+			}
 		}
 
 		/**
@@ -410,6 +417,13 @@ namespace pixi_heaven.mesh {
 		}
 
 		/**
+		 * calculates colors (if enabled)
+		 */
+		calcColors() {
+			/* nothing */
+		}
+
+		/**
 		 * Refreshes vertices of Plane mesh
 		 * by default, makes them uniformly distributed
 		 *
@@ -424,6 +438,10 @@ namespace pixi_heaven.mesh {
 
 			for (let i = 0; i < len; i++) {
 				vertices[i] = calculatedVertices[i];
+			}
+
+			if (this.colors) {
+				this.calcColors();
 			}
 		}
 
