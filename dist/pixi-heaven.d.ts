@@ -268,6 +268,7 @@ declare module PIXI.heaven.mesh {
         refreshVertices(forceUpdate?: boolean): void;
         _refreshUvs(): void;
         calcVertices(): void;
+        calcColors(): void;
         _refreshVertices(): void;
         reset(): void;
     }
@@ -306,13 +307,17 @@ declare module PIXI.heaven.mesh {
         resetOffsets(): void;
         reset(): void;
         calcVertices(): void;
+        calcColors(): void;
+        enableColors(): void;
     }
 }
 declare module PIXI.heaven.mesh {
     class RopePoint extends PIXI.Point {
         offset: number;
         scale: number;
+        _color: ColorTransform;
         constructor(x?: number, y?: number, offset?: number, scale?: number);
+        color: ColorTransform;
         clone(): RopePoint;
         copy(p: PIXI.Point | RopePoint): void;
         set(x: number, y: number, offset?: number, scale?: number): void;

@@ -1037,6 +1037,13 @@ var pixi_heaven;
                 this.vertices = new Float32Array(total * 2);
                 this.calculatedVertices = new Float32Array(total * 2);
                 this.indexDirty++;
+                if (this.colors) {
+                    this.colors = new Uint32Array(total * 2);
+                    for (var i = 0; i < total; i++) {
+                        this.colors[i * 2] = 0;
+                        this.colors[i * 2 + 1] = 0xffffffff;
+                    }
+                }
             };
             Plane.prototype.refreshVertices = function (forceUpdate) {
                 if (forceUpdate === void 0) { forceUpdate = false; }
@@ -1097,6 +1104,8 @@ var pixi_heaven;
                     vertices[(i * 2) + 1] = ((uy * x) + (vy * y) + offsetY) * height;
                 }
             };
+            Plane.prototype.calcColors = function () {
+            };
             Plane.prototype._refreshVertices = function () {
                 this.calcVertices();
                 var vertices = this.vertices;
@@ -1104,6 +1113,9 @@ var pixi_heaven;
                 var len = vertices.length;
                 for (var i = 0; i < len; i++) {
                     vertices[i] = calculatedVertices[i];
+                }
+                if (this.colors) {
+                    this.calcColors();
                 }
             };
             Plane.prototype.reset = function () {
@@ -1451,6 +1463,26 @@ var pixi_heaven;
                     lastPoint = point;
                 }
             };
+            Rope.prototype.calcColors = function () {
+                var colors = this.colors;
+                var points = this.points;
+                var h = this.verticesY;
+                var j = 0;
+                for (var i = 0; i < points.length; i++) {
+                    var color = points[i].color;
+                    color.updateTransformLocal();
+                    for (var k = 0; k < h; k++) {
+                        colors[j++] = color.darkRgba;
+                        colors[j++] = color.lightRgba;
+                    }
+                }
+            };
+            Rope.prototype.enableColors = function () {
+                for (var i = 0; i < this.points.length; i++) {
+                    this.points[i].color;
+                }
+                _super.prototype.enableColors.call(this);
+            };
             return Rope;
         }(mesh.Plane));
         mesh.Rope = Rope;
@@ -1470,8 +1502,27 @@ var pixi_heaven;
                 var _this = _super.call(this, x, y) || this;
                 _this.offset = offset;
                 _this.scale = scale;
+                _this._color = null;
                 return _this;
             }
+            Object.defineProperty(RopePoint.prototype, "color", {
+                get: function () {
+                    if (this._color === null) {
+                        this._color = new pixi_heaven.ColorTransform();
+                    }
+                    return this._color;
+                },
+                set: function (val) {
+                    if (typeof val === "number") {
+                        this.color.tintBGR = val;
+                    }
+                    else {
+                        this.color = val;
+                    }
+                },
+                enumerable: true,
+                configurable: true
+            });
             RopePoint.prototype.clone = function () {
                 return new RopePoint(this.x, this.y, this.offset, this.scale);
             };
