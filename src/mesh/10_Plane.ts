@@ -247,11 +247,11 @@ namespace pixi_heaven.mesh {
 		 * @param {boolean} [forceUpdate=false] if true, everything will be updated in any case
 		 */
 		refresh(forceUpdate = false) {
+			this.refreshDimensions(forceUpdate);
+
 			if (this._texture.noFrame) {
 				return;
 			}
-
-			this.refreshDimensions(forceUpdate);
 
 			if (this._lastWidth !== this.width
 				|| this._lastHeight !== this.height) {

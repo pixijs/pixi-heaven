@@ -989,10 +989,10 @@ var pixi_heaven;
             };
             Plane.prototype.refresh = function (forceUpdate) {
                 if (forceUpdate === void 0) { forceUpdate = false; }
+                this.refreshDimensions(forceUpdate);
                 if (this._texture.noFrame) {
                     return;
                 }
-                this.refreshDimensions(forceUpdate);
                 if (this._lastWidth !== this.width
                     || this._lastHeight !== this.height) {
                     this._lastWidth = this.width;
