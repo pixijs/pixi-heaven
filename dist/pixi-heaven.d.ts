@@ -498,6 +498,7 @@ declare module PIXI.heaven.spine {
         color: ColorTransform;
         constructor(spineData: PIXI.spine.core.SkeletonData);
         newSprite(tex: PIXI.Texture): any;
+        newMesh(texture: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number): any;
     }
     class SpineSprite extends Sprite {
         region: PIXI.spine.core.TextureRegion;

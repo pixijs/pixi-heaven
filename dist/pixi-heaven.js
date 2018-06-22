@@ -2580,6 +2580,9 @@ var pixi_heaven;
             Spine.prototype.newSprite = function (tex) {
                 return new SpineSprite(tex, this);
             };
+            Spine.prototype.newMesh = function (texture, vertices, uvs, indices, drawMode) {
+                return new pixi_heaven.mesh.Mesh(texture, vertices, uvs, indices, drawMode);
+            };
             return Spine;
         }(PIXI.spine.Spine));
         spine_1.Spine = Spine;
