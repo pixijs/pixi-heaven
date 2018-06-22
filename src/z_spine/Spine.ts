@@ -12,6 +12,10 @@ namespace pixi_heaven.spine {
 		newSprite(tex: PIXI.Texture): any {
 			return new SpineSprite(tex, this);
 		}
+
+		newMesh(texture: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number) {
+			return new mesh.Mesh(texture, vertices, uvs, indices, drawMode) as any;
+		}
 	}
 
 	export class SpineSprite extends Sprite {
