@@ -70,6 +70,23 @@ sprite.color.dark[2] = sprite.color.light[2];
 sprite.color.invalidate();
 ```
 
+### Meshes
+
+Heaven meshes can be batched with heaven sprites, 
+and that significantly reduces number of Draw Calls but it eats CPU resources and doesn't work 
+with advanced modes like `uploadUvTransform`
+
+```js
+// Default, PixiJS vanilla mode
+PIXI.heaven.settings.MESH_PLUGIN = 'meshHeaven';
+
+// New mode, meshes batched as sprites
+PIXI.heaven.settings.SPINE_MESH_PLUGIN = 'spriteHeaven';
+
+// manually set one mesh to be batched with sprites
+mesh.plugin = 'spriteHeaven';
+```
+
 ### How to use with spine
 
 This plugin enables light-dark tint of spine 3.6.
@@ -94,6 +111,19 @@ sprite2.renderable = false; //turn off rendering
 ```
 
 Batching works with spine, just enable maskSprite in any sprite of spine instance.
+
+The best practice for spine meshes is to batch them with sprites. It eats some CPU resources.
+
+```js
+// Default mode, meshes are rendered as sprites
+PIXI.heaven.settings.SPINE_MESH_PLUGIN = 'spriteHeaven';
+
+// PixiJS vanilla mode
+PIXI.heaven.settings.SPINE_MESH_PLUGIN = 'meshHeaven';
+```
+
+Look at [Spine file](https://github.com/gameofbombs/pixi-heaven/blob/master/src/z_spine/Spine.ts) to see 
+how it actually works. 
 
 ### How to use colored meshes
 

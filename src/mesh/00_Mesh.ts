@@ -114,7 +114,7 @@ namespace pixi_heaven.mesh {
 		 * @member {string}
 		 * @default 'mesh'
 		 */
-		pluginName = 'meshHeaven';
+		pluginName = settings.MESH_PLUGIN;
 
 		/**
 		 * transform that is applied to UV to get the texture coords
@@ -125,6 +125,11 @@ namespace pixi_heaven.mesh {
 		 * @private
 		 */
 		_uvTransform: PIXI.TextureMatrix;
+
+		/**
+		 * Same as sprite vertexData
+		 */
+		vertexData: Float32Array = null;
 
 		/**
 		 * @param {PIXI.Texture} texture - The texture to use
@@ -309,6 +314,34 @@ namespace pixi_heaven.mesh {
 			}
 
 			return false;
+		}
+
+		calculateVertices() {
+			const vertices = this.vertices;
+			const n = vertices.length;
+
+			if (!this.vertexData || this.vertexData.length !== n)
+			{
+				this.vertexData = new Float32Array(n);
+			}
+
+			const vertexData = this.vertexData;
+
+			const matrix = this.transform.worldTransform;
+			const a = matrix.a;
+			const b = matrix.b;
+			const c = matrix.c;
+			const d = matrix.d;
+			const tx = matrix.tx;
+			const ty = matrix.ty;
+
+			for (let i = 0; i < n; i += 2)
+			{
+				const rawX = vertices[i];
+				const rawY = vertices[i + 1];
+				vertexData[i] = (a * rawX) + (c * rawY) + tx;
+				vertexData[i+1] = (d * rawY) + (b * rawX) + ty;
+			}
 		}
 
 		/**

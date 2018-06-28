@@ -65,27 +65,41 @@ gl_FragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.r
 			//first, fill the coordinates!
 
 			const vertexData = sprite.vertexData;
-			const uvs = sprite._texture._uvs.uvsUint32;
 
-			const n = vertexData.length / 2;
+			const n = vertexData.length;
 
 			const lightRgba = sprite.color.lightRgba;
 			const darkRgba = sprite.color.darkRgba;
 			const stride = this.vertSize;
 			const oldIndex = index;
 
-			for (let i = 0; i < n; i++) {
-				float32View[index] = vertexData[i * 2];
-				float32View[index + 1] = vertexData[i * 2 + 1];
-				uint32View[index + 2] = uvs[i];
+			for (let i = 0; i < n; i += 2) {
+				float32View[index] = vertexData[i];
+				float32View[index + 1] = vertexData[i + 1];
 				uint32View[index + 3] = lightRgba;
 				uint32View[index + 4] = darkRgba;
 				index += stride;
 			}
 
+			const uvs = sprite.uvs;
+			if (uvs) {
+				index = oldIndex + 2;
+				for (let i = 0; i < n; i += 2) {
+					uint32View[index] = (((uvs[i + 1] * 65535) & 0xFFFF) << 16) | ((uvs[i] * 65535) & 0xFFFF);
+					index += stride;
+				}
+			} else {
+				const _uvs = sprite._texture._uvs.uvsUint32;
+				index = oldIndex + 2;
+				for (let i = 0; i < n; i += 2) {
+					uint32View[index] = _uvs[i >> 1];
+					index += stride;
+				}
+			}
+
 			if (stride === 6) {
 				index = oldIndex + 5;
-				for (let i = 0; i < n; i++) {
+				for (let i = 0; i < n; i += 2) {
 					float32View[index] = textureId;
 					index += stride;
 				}

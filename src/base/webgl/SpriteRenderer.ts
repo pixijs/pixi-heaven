@@ -39,7 +39,8 @@ namespace pixi_heaven.webgl {
 
 		abstract createVao(vertexBuffer: GLBuffer): PIXI.glCore.VertexArrayObject;
 
-		abstract fillVertices(float32View: Float32Array, uint32View: Uint32Array, index: number, sprite: any, textureId: number): void;
+		abstract fillVertices(float32View: Float32Array, uint32View: Uint32Array,
+		                      index: number, sprite: any, textureId: number): void;
 
 		getUniforms(spr: PIXI.Sprite): any {
 			return null;
@@ -57,6 +58,9 @@ namespace pixi_heaven.webgl {
 		vertByteSize = this.vertSize * 4;
 		size = settings.SPRITE_BATCH_SIZE;
 		buffers: Array<BatchBuffer>;
+		buffersIndex: Array<Uint16Array>;
+
+		bigMeshVertexBuffer: BatchBuffer = null;
 
 		indices: Uint16Array;
 
@@ -64,16 +68,22 @@ namespace pixi_heaven.webgl {
 
 		currentIndex = 0;
 		groups: Array<BatchGroup>;
-		sprites: Array<Sprite> = [];
+		sprites: Array<any> = [];
+
+		countVertex = 0;
+		countIndex = 0;
 
 		indexBuffer: GLBuffer;
 		vertexBuffers: Array<GLBuffer> = [];
+		indexBuffers: Array<GLBuffer> = [];
+
 		vaos: Array<VertexArrayObject> = [];
 		vao: VertexArrayObject;
 		vaoMax = 2;
 		vertexCount = 0;
 
 		MAX_TEXTURES = 1;
+		changedIndexBuffer = 0;
 
 		/**
 		 * @param {PIXI.WebGLRenderer} renderer - The renderer this sprite batch works for.
@@ -112,14 +122,11 @@ namespace pixi_heaven.webgl {
 			// generate generateMultiTextureProgram, may be a better move?
 			this.genShader();
 
-			this.indexBuffer = GLBuffer.createIndexBuffer(gl, this.indices, gl.STATIC_DRAW);
-
 			// we use the second shader as the first one depending on your browser may omit aTextureId
 			// as it is not used by the shader so is optimized out.
-
 			this.renderer.bindVao(null);
 
-			const attrs = this.shader.attributes;
+			this.indexBuffer = GLBuffer.createIndexBuffer(gl, this.indices, gl.STATIC_DRAW);
 
 			for (let i = 0; i < this.vaoMax; i++) {
 				/* eslint-disable max-len */
@@ -128,12 +135,17 @@ namespace pixi_heaven.webgl {
 
 				// build the vao object that will render..
 				this.vaos[i] = this.createVao(vertexBuffer);
+				this.indexBuffers[i] = GLBuffer.createIndexBuffer(gl, null, gl.STREAM_DRAW);
 			}
 
 			if (!this.buffers) {
 				this.buffers = [];
+				this.buffersIndex = [];
 				for (let i = 1; i <= utils.nextPow2(this.size); i *= 2) {
 					this.buffers.push(new BatchBuffer(i * 4 * this.vertByteSize));
+				}
+				for (let i = 1; i <= utils.nextPow2(this.size); i *= 2) {
+					this.buffersIndex.push(new Uint16Array(i * 6));
 				}
 			}
 
@@ -153,27 +165,101 @@ namespace pixi_heaven.webgl {
 		 *
 		 * @param {PIXI.Sprite} sprite - the sprite to render when using this spritebatch
 		 */
-		render(sprite: Sprite) {
-			// TODO set blend modes..
-			// check texture..
-			if (this.currentIndex >= this.size) {
-				this.flush();
-			}
-
-			// get the uvs for the texture
-
+		render(element: any) {
 			// if the uvs have not updated then no point rendering just yet!
-			if (!(sprite as any)._texture._uvs) {
+			if (!element._texture._uvs) {
 				return;
 			}
-			if (!(sprite as any)._texture.baseTexture) {
+			if (!element._texture.baseTexture) {
 				//WTF, Rpgmaker MV?
 				return;
 			}
 
+			let countVertex = 4;
+			let countIndex = 6;
+
+			if (element.vertices) {
+				//mesh !
+				countVertex = element.vertices.length / 2;
+				countIndex = element.indices.length;
+
+				element.calculateVertices();
+			}
+			// TODO set blend modes..
+			// check texture..
+			if (this.currentIndex >= this.size ||
+				countVertex + this.countVertex > this.size * 4 ||
+				countIndex + this.countIndex > this.size * 6) {
+				this.flush();
+			}
+
+			if (countVertex > this.size * 4 ||
+				countIndex > this.size * 6) {
+				this.renderSingleMesh(element);
+				return;
+			}
+
+			this.countVertex += countVertex;
+			this.countIndex += countIndex;
+
 			// push a texture.
 			// increment the batchsize
-			this.sprites[this.currentIndex++] = sprite;
+			this.sprites[this.currentIndex++] = element;
+		}
+
+		renderSingleMesh(mesh: mesh.Mesh) {
+			const renderer = this.renderer;
+			const gl = renderer.gl;
+
+			this.renderer.state.setBlendMode(
+				premultiplyBlendMode[mesh._texture.baseTexture.premultipliedAlpha ? 1 : 0][mesh.blendMode]
+			);
+
+			const textureId = this.renderer.bindTexture(mesh._texture.baseTexture);
+
+			const curVertexCount = this.vertexCount;
+			const isNewBuffer = this.checkVaoMax();
+
+			if (!this.bigMeshVertexBuffer ||
+				this.bigMeshVertexBuffer.vertices.byteLength < this.vertByteSize * mesh.vertices.length) {
+				this.bigMeshVertexBuffer = new BatchBuffer(this.vertByteSize * mesh.vertices.length);
+			}
+
+			mesh.calculateVertices();
+			this.fillVertices(this.bigMeshVertexBuffer.float32View, this.bigMeshVertexBuffer.uint32View,
+				0, mesh, textureId);
+
+			this.vertexBuffers[curVertexCount].upload(this.bigMeshVertexBuffer.vertices, 0, !isNewBuffer);
+			this.indexBuffers[curVertexCount].upload(mesh.indices, 0, false);
+
+			gl.drawElements(gl.TRIANGLES, mesh.indices.length, gl.UNSIGNED_SHORT, 0);
+		}
+
+		checkVaoMax() {
+			if (settings.CAN_UPLOAD_SAME_BUFFER) {
+				return false;
+			}
+
+			const renderer = this.renderer;
+			const gl = renderer.gl;
+
+			// this is still needed for IOS performance..
+			// it really does not like uploading to the same buffer in a single frame!
+			if (this.vaoMax <= this.vertexCount) {
+				this.vaoMax++;
+
+				/* eslint-disable max-len */
+				const vertexBuffer = this.vertexBuffers[this.vertexCount] = GLBuffer.createVertexBuffer(gl, null, gl.STREAM_DRAW);
+				this.vaos[this.vertexCount] = this.createVao(vertexBuffer);
+				this.indexBuffers[this.vertexCount] = GLBuffer.createIndexBuffer(gl, null, gl.STREAM_DRAW);
+				/* eslint-enable max-len */
+
+				this.vertexCount++;
+			} else {
+				renderer.bindVao(this.vaos[this.vertexCount]);
+			}
+
+			return true;
 		}
 
 		/**
@@ -188,9 +274,13 @@ namespace pixi_heaven.webgl {
 			const gl = this.renderer.gl;
 			const MAX_TEXTURES = this.MAX_TEXTURES;
 
-			const np2 = utils.nextPow2(this.currentIndex);
-			const log2 = utils.log2(np2);
+			let np2 = utils.nextPow2(Math.ceil((this.countVertex + 3) / 4));
+			let log2 = utils.log2(np2);
 			const buffer = this.buffers[log2];
+
+			np2 = utils.nextPow2(Math.ceil((this.countIndex + 5) / 6));
+			log2 = utils.log2(np2);
+			const bufferIndex = this.buffersIndex[log2];
 
 			const sprites = this.sprites;
 			const groups = this.groups;
@@ -200,7 +290,6 @@ namespace pixi_heaven.webgl {
 
 			// const touch = 0;// this.renderer.textureGC.count;
 
-			let index = 0;
 			let nextTexture: any;
 			let currentTexture: BaseTexture;
 			let currentUniforms: any = null;
@@ -209,6 +298,7 @@ namespace pixi_heaven.webgl {
 			let currentGroup = groups[0];
 			let blendMode = premultiplyBlendMode[
 				(sprites[0] as any)._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
+			let hasMesh = false;
 
 			currentGroup.textureCount = 0;
 			currentGroup.start = 0;
@@ -217,6 +307,8 @@ namespace pixi_heaven.webgl {
 			TICK++;
 
 			let i;
+			let posVertex = 0;
+			let posIndex = 0;
 
 			for (i = 0; i < this.currentIndex; ++i) {
 				// upload the sprite elemetns...
@@ -257,13 +349,11 @@ namespace pixi_heaven.webgl {
 							TICK++;
 
 							textureCount = 0;
-
-							currentGroup.size = i - currentGroup.start;
-
+							currentGroup.size = posIndex - currentGroup.start;
 							currentGroup = groups[groupCount++];
 							currentGroup.textureCount = 0;
 							currentGroup.blend = blendMode;
-							currentGroup.start = i;
+							currentGroup.start = posIndex;
 							currentGroup.uniforms = currentUniforms;
 						}
 
@@ -275,42 +365,38 @@ namespace pixi_heaven.webgl {
 					}
 				}
 
-				this.fillVertices(float32View, uint32View, index, sprite, nextTexture._virtalBoundId);
+				this.fillVertices(float32View, uint32View, posVertex * this.vertSize, sprite, nextTexture._virtalBoundId);
 
-				index += this.vertSize * 4;
-			}
-
-			currentGroup.size = i - currentGroup.start;
-
-			if (!settings.CAN_UPLOAD_SAME_BUFFER) {
-				// this is still needed for IOS performance..
-				// it really does not like uploading to the same buffer in a single frame!
-				if (this.vaoMax <= this.vertexCount) {
-					this.vaoMax++;
-
-					const attrs = this.shader.attributes;
-
-					/* eslint-disable max-len */
-					const vertexBuffer = this.vertexBuffers[this.vertexCount] = GLBuffer.createVertexBuffer(gl, null, gl.STREAM_DRAW);
-					/* eslint-enable max-len */
-
-					this.vaos[this.vertexCount] = this.createVao(vertexBuffer);
+				if (sprite.indices) {
+					const len = sprite.indices.length;
+					for (let k=0; k<len; k++) {
+						bufferIndex[posIndex++] = posVertex + sprite.indices[k];
+					}
+					hasMesh = true;
+				} else {
+					bufferIndex[posIndex++] = posVertex;
+					bufferIndex[posIndex++] = posVertex + 1;
+					bufferIndex[posIndex++] = posVertex + 2;
+					bufferIndex[posIndex++] = posVertex;
+					bufferIndex[posIndex++] = posVertex + 2;
+					bufferIndex[posIndex++] = posVertex + 3;
 				}
-
-				this.renderer.bindVao(this.vaos[this.vertexCount]);
-
-				this.vertexBuffers[this.vertexCount].upload(buffer.vertices, 0, false);
-
-				this.vertexCount++;
-			}
-			else {
-				// lets use the faster option, always use buffer number 0
-				this.vertexBuffers[this.vertexCount].upload(buffer.vertices, 0, true);
+				posVertex += sprite.vertexData.length / 2;
 			}
 
-			currentUniforms = null;
+			currentGroup.size = posIndex - currentGroup.start;
 
-			// / render the groups..
+			const curVertexCount = this.vertexCount;
+			const isNewBuffer = this.checkVaoMax();
+
+			this.vertexBuffers[curVertexCount].upload(buffer.vertices, 0, !isNewBuffer);
+			if (hasMesh) {
+				this.indexBuffers[curVertexCount].upload(bufferIndex, 0);
+			} else {
+				this.indexBuffer.bind();
+			}
+
+			// render the groups..
 			for (i = 0; i < groupCount; i++) {
 				const group = groups[i];
 				const groupTextureCount = group.textureCount;
@@ -334,11 +420,13 @@ namespace pixi_heaven.webgl {
 				// set the blend mode..
 				this.renderer.state.setBlendMode(group.blend);
 
-				gl.drawElements(gl.TRIANGLES, group.size * 6, gl.UNSIGNED_SHORT, group.start * 6 * 2);
+				gl.drawElements(gl.TRIANGLES, group.size, gl.UNSIGNED_SHORT, group.start * 2);
 			}
 
-			// reset elements for the next flush
+			// reset sprites for the next flush
 			this.currentIndex = 0;
+			this.countVertex = 0;
+			this.countIndex = 0;
 		}
 
 		/**
@@ -372,6 +460,9 @@ namespace pixi_heaven.webgl {
 				if (this.vertexBuffers[i]) {
 					this.vertexBuffers[i].destroy();
 				}
+				if (this.indexBuffers[i]) {
+					this.indexBuffers[i].destroy();
+				}
 				if (this.vaos[i]) {
 					this.vaos[i].destroy();
 				}
@@ -400,6 +491,7 @@ namespace pixi_heaven.webgl {
 			for (let i = 0; i < this.buffers.length; ++i) {
 				this.buffers[i].destroy();
 			}
+			this.buffersIndex = null;
 		}
 	}
 }

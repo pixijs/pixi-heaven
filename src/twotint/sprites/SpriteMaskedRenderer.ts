@@ -62,7 +62,7 @@ vec2 texCoord = vTextureCoord;
 vec4 fragColor;
 fragColor.a = texColor.a * vLight.a;
 fragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.rgb + texColor.rgb * vLight.rgb;
-gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.0 - vTextureId);
+gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId);
 }`;
 
 		createVao(vertexBuffer: PIXI.glCore.GLBuffer) {
@@ -89,9 +89,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 			//first, fill the coordinates!
 
 			const vertexData = sprite.vertexData;
-			const uvs = sprite._texture._uvs.uvsUint32;
-
-			const n = vertexData.length / 2;
+			const n = vertexData.length;
 
 			const lightRgba = sprite.color.lightRgba;
 			const darkRgba = sprite.color.darkRgba;
@@ -107,22 +105,39 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 				maskVertexData = sprite.maskVertexData;
 			}
 
-			for (let i = 0; i < n; i++) {
-				float32View[index] = vertexData[i * 2];
-				float32View[index + 1] = vertexData[i * 2 + 1];
-				uint32View[index + 2] = uvs[i];
+			const oldIndex = index;
+
+			for (let i = 0; i < n; i += 2) {
+				float32View[index] = vertexData[i];
+				float32View[index + 1] = vertexData[i + 1];
 				uint32View[index + 3] = lightRgba;
 				uint32View[index + 4] = darkRgba;
 				float32View[index + 5] = mask ? 1 : 0;
 
-				float32View[index + 6] = maskVertexData[i * 2];
-				float32View[index + 7] = maskVertexData[i * 2 + 1];
+				float32View[index + 6] = maskVertexData[i];
+				float32View[index + 7] = maskVertexData[i + 1];
 				float32View[index + 8] = clamp[0];
 				float32View[index + 9] = clamp[1];
 				float32View[index + 10] = clamp[2];
 				float32View[index + 11] = clamp[3];
 
 				index += stride;
+			}
+
+			const uvs = sprite.uvs;
+			if (uvs) {
+				index = oldIndex + 2;
+				for (let i = 0; i < n; i += 2) {
+					uint32View[index] = (((uvs[i + 1] * 65535) & 0xFFFF) << 16) | ((uvs[i] * 65535) & 0xFFFF);
+					index += stride;
+				}
+			} else {
+				const _uvs = sprite._texture._uvs.uvsUint32;
+				index = oldIndex + 2;
+				for (let i = 0; i < n; i += 2) {
+					uint32View[index] = _uvs[i >> 1];
+					index += stride;
+				}
 			}
 		}
 
@@ -139,9 +154,13 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 			const gl = this.renderer.gl;
 			const MAX_TEXTURES = this.MAX_TEXTURES;
 
-			const np2 = utils.nextPow2(this.currentIndex);
-			const log2 = utils.log2(np2);
+			let np2 = utils.nextPow2((this.countVertex + 3) / 4 | 0);
+			let log2 = utils.log2(np2);
 			const buffer = this.buffers[log2];
+
+			np2 = utils.nextPow2((this.countIndex + 5) / 6 | 0);
+			log2 = utils.log2(np2);
+			const bufferIndex = this.buffersIndex[log2];
 
 			const sprites = this.sprites;
 			const groups = this.groups;
@@ -151,21 +170,23 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 
 			// const touch = 0;// this.renderer.textureGC.count;
 
-			let index = 0;
-			let nextTexture: any, nextMaskTexture: any;
-			let currentTexture: BaseTexture = null, currentMaskTexture: BaseTexture = null;
+			let nextTexture, nextMaskTexture: any;
+			let currentTexture: BaseTexture, currentMaskTexture: BaseTexture = null;
 			let currentUniforms: any = null;
 			let groupCount = 1;
 			let textureCount = 0;
 			let currentGroup = groups[0];
 			let blendMode = premultiplyBlendMode[
 				(sprites[0] as any)._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
+			let hasMesh = false;
 
 			currentGroup.textureCount = 0;
 			currentGroup.start = 0;
 			currentGroup.blend = blendMode;
 
 			let i;
+			let posVertex = 0;
+			let posIndex = 0;
 
 			for (i = 0; i < this.currentIndex; ++i) {
 				// upload the sprite elemetns...
@@ -173,7 +194,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 
 				// upload the sprite elemetns...
 				// they have all ready been calculated so we just need to push them into the buffer.
-				const sprite = sprites[i] as Sprite;
+				const sprite = sprites[i];
 
 				nextTexture = (sprite as any).texture.baseTexture;
 				nextMaskTexture = null;
@@ -239,40 +260,33 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 					textureCount = MAX_TEXTURES;
 				}
 
-				this.fillVertices(float32View, uint32View, index, sprite, nextTexture._virtalBoundId);
+				this.fillVertices(float32View, uint32View, posVertex * this.vertSize, sprite, nextTexture._virtalBoundId);
 
-				index += this.vertSize * 4;
-			}
-
-			currentGroup.size = i - currentGroup.start;
-
-			if (!settings.CAN_UPLOAD_SAME_BUFFER) {
-				// this is still needed for IOS performance..
-				// it really does not like uploading to the same buffer in a single frame!
-				if (this.vaoMax <= this.vertexCount) {
-					this.vaoMax++;
-
-					const attrs = this.shader.attributes;
-
-					/* eslint-disable max-len */
-					const vertexBuffer = this.vertexBuffers[this.vertexCount] = GLBuffer.createVertexBuffer(gl, null, gl.STREAM_DRAW);
-					/* eslint-enable max-len */
-
-					this.vaos[this.vertexCount] = this.createVao(vertexBuffer);
+				if (sprite.indices) {
+					const len = sprite.indices.length;
+					for (let k=0; k<len; k++) {
+						bufferIndex[posIndex++] = posVertex + sprite.indices[k];
+					}
+					hasMesh = true;
+				} else {
+					bufferIndex[posIndex++] = posVertex;
+					bufferIndex[posIndex++] = posVertex + 1;
+					bufferIndex[posIndex++] = posVertex + 2;
+					bufferIndex[posIndex++] = posVertex;
+					bufferIndex[posIndex++] = posVertex + 2;
+					bufferIndex[posIndex++] = posVertex + 3;
 				}
-
-				this.renderer.bindVao(this.vaos[this.vertexCount]);
-
-				this.vertexBuffers[this.vertexCount].upload(buffer.vertices, 0, false);
-
-				this.vertexCount++;
-			}
-			else {
-				// lets use the faster option, always use buffer number 0
-				this.vertexBuffers[this.vertexCount].upload(buffer.vertices, 0, true);
+				posVertex += sprite.vertexData.length / 2;
 			}
 
-			currentUniforms = null;
+			currentGroup.size = posIndex - currentGroup.start;
+
+			const curVertexCount = this.vertexCount;
+			const isNewBuffer = this.checkVaoMax();
+			const ib = hasMesh ? this.indexBuffers[curVertexCount] : this.indexBuffer;
+
+			this.vertexBuffers[curVertexCount].upload(buffer.vertices, 0, !isNewBuffer);
+			ib.bind();
 
 			// / render the groups..
 			for (i = 0; i < groupCount; i++) {
@@ -301,8 +315,10 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.
 				gl.drawElements(gl.TRIANGLES, group.size * 6, gl.UNSIGNED_SHORT, group.start * 6 * 2);
 			}
 
-			// reset elements for the next flush
+			// reset sprites for the next flush
 			this.currentIndex = 0;
+			this.countVertex = 0;
+			this.countIndex = 0;
 		}
 
 		genShader() {

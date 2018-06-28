@@ -14,7 +14,9 @@ namespace pixi_heaven.spine {
 		}
 
 		newMesh(texture: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number) {
-			return new mesh.Mesh(texture, vertices, uvs, indices, drawMode) as any;
+			let m = new mesh.Mesh(texture, vertices, uvs, indices, drawMode) as any;
+			m.pluginName = settings.SPINE_MESH_PLUGIN;
+			return m;
 		}
 	}
 
