@@ -85,7 +85,6 @@ declare module PIXI.heaven.webgl {
     import GLBuffer = PIXI.glCore.GLBuffer;
     import VertexArrayObject = PIXI.glCore.VertexArrayObject;
     import WebGLRenderer = PIXI.WebGLRenderer;
-    import Sprite = PIXI.Sprite;
     class BatchGroup {
         textures: Array<BaseTexture>;
         textureCount: number;
@@ -107,23 +106,31 @@ declare module PIXI.heaven.webgl {
         vertByteSize: number;
         size: number;
         buffers: Array<BatchBuffer>;
+        buffersIndex: Array<Uint16Array>;
+        bigMeshVertexBuffer: BatchBuffer;
         indices: Uint16Array;
         shader: PIXI.Shader;
         currentIndex: number;
         groups: Array<BatchGroup>;
-        sprites: Array<Sprite>;
+        sprites: Array<any>;
+        countVertex: number;
+        countIndex: number;
         indexBuffer: GLBuffer;
         vertexBuffers: Array<GLBuffer>;
+        indexBuffers: Array<GLBuffer>;
         vaos: Array<VertexArrayObject>;
         vao: VertexArrayObject;
         vaoMax: number;
         vertexCount: number;
         MAX_TEXTURES: number;
+        changedIndexBuffer: number;
         constructor(renderer: WebGLRenderer);
         genShader(): void;
         onContextChange(): void;
         onPrerender(): void;
-        render(sprite: Sprite): void;
+        render(element: any): void;
+        renderSingleMesh(mesh: mesh.Mesh): void;
+        checkVaoMax(): boolean;
         flush(): void;
         start(): void;
         stop(): void;
@@ -213,6 +220,7 @@ declare module PIXI.heaven.mesh {
         uploadUvTransform: boolean;
         pluginName: string;
         _uvTransform: PIXI.TextureMatrix;
+        vertexData: Float32Array;
         constructor(texture?: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number);
         updateTransform(): void;
         _renderWebGL(renderer: PIXI.WebGLRenderer): void;
@@ -223,6 +231,7 @@ declare module PIXI.heaven.mesh {
         _refreshUvs(): void;
         _calculateBounds(): void;
         containsPoint(point: PIXI.PointLike): boolean;
+        calculateVertices(): void;
         texture: PIXI.Texture;
         enableColors(): void;
         setRGB(rgb: Float32Array, dark: boolean): void;
@@ -344,6 +353,12 @@ declare module PIXI.heaven.mesh {
         onContextChange(): void;
         render(mesh: Mesh): void;
     }
+}
+declare module PIXI.heaven {
+    let settings: {
+        MESH_PLUGIN: string;
+        SPINE_MESH_PLUGIN: string;
+    };
 }
 declare module PIXI.heaven {
     interface IAtlasOptions {

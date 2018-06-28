@@ -28,6 +28,13 @@ var pixi_heaven;
 })(pixi_heaven || (pixi_heaven = {}));
 var pixi_heaven;
 (function (pixi_heaven) {
+    pixi_heaven.settings = {
+        MESH_PLUGIN: 'meshHeaven',
+        SPINE_MESH_PLUGIN: 'spriteHeaven'
+    };
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
     var utils;
     (function (utils) {
         function createIndicesForQuads(size) {
@@ -278,13 +285,18 @@ var pixi_heaven;
                 _this.vertSize = 5;
                 _this.vertByteSize = _this.vertSize * 4;
                 _this.size = settings.SPRITE_BATCH_SIZE;
+                _this.bigMeshVertexBuffer = null;
                 _this.currentIndex = 0;
                 _this.sprites = [];
+                _this.countVertex = 0;
+                _this.countIndex = 0;
                 _this.vertexBuffers = [];
+                _this.indexBuffers = [];
                 _this.vaos = [];
                 _this.vaoMax = 2;
                 _this.vertexCount = 0;
                 _this.MAX_TEXTURES = 1;
+                _this.changedIndexBuffer = 0;
                 _this.indices = pixi_heaven.utils.createIndicesForQuads(_this.size);
                 _this.groups = [];
                 for (var k = 0; k < _this.size; k++) {
@@ -314,17 +326,21 @@ var pixi_heaven;
             MultiTextureSpriteRenderer.prototype.onContextChange = function () {
                 var gl = this.renderer.gl;
                 this.genShader();
-                this.indexBuffer = GLBuffer.createIndexBuffer(gl, this.indices, gl.STATIC_DRAW);
                 this.renderer.bindVao(null);
-                var attrs = this.shader.attributes;
+                this.indexBuffer = GLBuffer.createIndexBuffer(gl, this.indices, gl.STATIC_DRAW);
                 for (var i = 0; i < this.vaoMax; i++) {
                     var vertexBuffer = this.vertexBuffers[i] = GLBuffer.createVertexBuffer(gl, null, gl.STREAM_DRAW);
                     this.vaos[i] = this.createVao(vertexBuffer);
+                    this.indexBuffers[i] = GLBuffer.createIndexBuffer(gl, null, gl.STREAM_DRAW);
                 }
                 if (!this.buffers) {
                     this.buffers = [];
+                    this.buffersIndex = [];
                     for (var i = 1; i <= pixi_heaven.utils.nextPow2(this.size); i *= 2) {
                         this.buffers.push(new webgl.BatchBuffer(i * 4 * this.vertByteSize));
+                    }
+                    for (var i = 1; i <= pixi_heaven.utils.nextPow2(this.size); i *= 2) {
+                        this.buffersIndex.push(new Uint16Array(i * 6));
                     }
                 }
                 this.vao = this.vaos[0];
@@ -332,17 +348,68 @@ var pixi_heaven;
             MultiTextureSpriteRenderer.prototype.onPrerender = function () {
                 this.vertexCount = 0;
             };
-            MultiTextureSpriteRenderer.prototype.render = function (sprite) {
-                if (this.currentIndex >= this.size) {
+            MultiTextureSpriteRenderer.prototype.render = function (element) {
+                if (!element._texture._uvs) {
+                    return;
+                }
+                if (!element._texture.baseTexture) {
+                    return;
+                }
+                var countVertex = 4;
+                var countIndex = 6;
+                if (element.vertices) {
+                    countVertex = element.vertices.length / 2;
+                    countIndex = element.indices.length;
+                    element.calculateVertices();
+                }
+                if (this.currentIndex >= this.size ||
+                    countVertex + this.countVertex > this.size * 4 ||
+                    countIndex + this.countIndex > this.size * 6) {
                     this.flush();
                 }
-                if (!sprite._texture._uvs) {
+                if (countVertex > this.size * 4 ||
+                    countIndex > this.size * 6) {
+                    this.renderSingleMesh(element);
                     return;
                 }
-                if (!sprite._texture.baseTexture) {
-                    return;
+                this.countVertex += countVertex;
+                this.countIndex += countIndex;
+                this.sprites[this.currentIndex++] = element;
+            };
+            MultiTextureSpriteRenderer.prototype.renderSingleMesh = function (mesh) {
+                var renderer = this.renderer;
+                var gl = renderer.gl;
+                this.renderer.state.setBlendMode(premultiplyBlendMode[mesh._texture.baseTexture.premultipliedAlpha ? 1 : 0][mesh.blendMode]);
+                var textureId = this.renderer.bindTexture(mesh._texture.baseTexture);
+                var curVertexCount = this.vertexCount;
+                var isNewBuffer = this.checkVaoMax();
+                if (!this.bigMeshVertexBuffer ||
+                    this.bigMeshVertexBuffer.vertices.byteLength < this.vertByteSize * mesh.vertices.length) {
+                    this.bigMeshVertexBuffer = new webgl.BatchBuffer(this.vertByteSize * mesh.vertices.length);
                 }
-                this.sprites[this.currentIndex++] = sprite;
+                mesh.calculateVertices();
+                this.fillVertices(this.bigMeshVertexBuffer.float32View, this.bigMeshVertexBuffer.uint32View, 0, mesh, textureId);
+                this.vertexBuffers[curVertexCount].upload(this.bigMeshVertexBuffer.vertices, 0, !isNewBuffer);
+                this.indexBuffers[curVertexCount].upload(mesh.indices, 0, false);
+                gl.drawElements(gl.TRIANGLES, mesh.indices.length, gl.UNSIGNED_SHORT, 0);
+            };
+            MultiTextureSpriteRenderer.prototype.checkVaoMax = function () {
+                if (settings.CAN_UPLOAD_SAME_BUFFER) {
+                    return false;
+                }
+                var renderer = this.renderer;
+                var gl = renderer.gl;
+                if (this.vaoMax <= this.vertexCount) {
+                    this.vaoMax++;
+                    var vertexBuffer = this.vertexBuffers[this.vertexCount] = GLBuffer.createVertexBuffer(gl, null, gl.STREAM_DRAW);
+                    this.vaos[this.vertexCount] = this.createVao(vertexBuffer);
+                    this.indexBuffers[this.vertexCount] = GLBuffer.createIndexBuffer(gl, null, gl.STREAM_DRAW);
+                    this.vertexCount++;
+                }
+                else {
+                    renderer.bindVao(this.vaos[this.vertexCount]);
+                }
+                return true;
             };
             MultiTextureSpriteRenderer.prototype.flush = function () {
                 if (this.currentIndex === 0) {
@@ -350,14 +417,16 @@ var pixi_heaven;
                 }
                 var gl = this.renderer.gl;
                 var MAX_TEXTURES = this.MAX_TEXTURES;
-                var np2 = pixi_heaven.utils.nextPow2(this.currentIndex);
+                var np2 = pixi_heaven.utils.nextPow2(Math.ceil((this.countVertex + 3) / 4));
                 var log2 = pixi_heaven.utils.log2(np2);
                 var buffer = this.buffers[log2];
+                np2 = pixi_heaven.utils.nextPow2(Math.ceil((this.countIndex + 5) / 6));
+                log2 = pixi_heaven.utils.log2(np2);
+                var bufferIndex = this.buffersIndex[log2];
                 var sprites = this.sprites;
                 var groups = this.groups;
                 var float32View = buffer.float32View;
                 var uint32View = buffer.uint32View;
-                var index = 0;
                 var nextTexture;
                 var currentTexture;
                 var currentUniforms = null;
@@ -365,11 +434,14 @@ var pixi_heaven;
                 var textureCount = 0;
                 var currentGroup = groups[0];
                 var blendMode = premultiplyBlendMode[sprites[0]._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
+                var hasMesh = false;
                 currentGroup.textureCount = 0;
                 currentGroup.start = 0;
                 currentGroup.blend = blendMode;
                 TICK++;
                 var i;
+                var posVertex = 0;
+                var posIndex = 0;
                 for (i = 0; i < this.currentIndex; ++i) {
                     var sprite = sprites[i];
                     nextTexture = sprite._texture.baseTexture;
@@ -393,11 +465,11 @@ var pixi_heaven;
                             if (textureCount === MAX_TEXTURES) {
                                 TICK++;
                                 textureCount = 0;
-                                currentGroup.size = i - currentGroup.start;
+                                currentGroup.size = posIndex - currentGroup.start;
                                 currentGroup = groups[groupCount++];
                                 currentGroup.textureCount = 0;
                                 currentGroup.blend = blendMode;
-                                currentGroup.start = i;
+                                currentGroup.start = posIndex;
                                 currentGroup.uniforms = currentUniforms;
                             }
                             nextTexture._enabled = TICK;
@@ -406,25 +478,34 @@ var pixi_heaven;
                             textureCount++;
                         }
                     }
-                    this.fillVertices(float32View, uint32View, index, sprite, nextTexture._virtalBoundId);
-                    index += this.vertSize * 4;
-                }
-                currentGroup.size = i - currentGroup.start;
-                if (!settings.CAN_UPLOAD_SAME_BUFFER) {
-                    if (this.vaoMax <= this.vertexCount) {
-                        this.vaoMax++;
-                        var attrs = this.shader.attributes;
-                        var vertexBuffer = this.vertexBuffers[this.vertexCount] = GLBuffer.createVertexBuffer(gl, null, gl.STREAM_DRAW);
-                        this.vaos[this.vertexCount] = this.createVao(vertexBuffer);
+                    this.fillVertices(float32View, uint32View, posVertex * this.vertSize, sprite, nextTexture._virtalBoundId);
+                    if (sprite.indices) {
+                        var len = sprite.indices.length;
+                        for (var k = 0; k < len; k++) {
+                            bufferIndex[posIndex++] = posVertex + sprite.indices[k];
+                        }
+                        hasMesh = true;
                     }
-                    this.renderer.bindVao(this.vaos[this.vertexCount]);
-                    this.vertexBuffers[this.vertexCount].upload(buffer.vertices, 0, false);
-                    this.vertexCount++;
+                    else {
+                        bufferIndex[posIndex++] = posVertex;
+                        bufferIndex[posIndex++] = posVertex + 1;
+                        bufferIndex[posIndex++] = posVertex + 2;
+                        bufferIndex[posIndex++] = posVertex;
+                        bufferIndex[posIndex++] = posVertex + 2;
+                        bufferIndex[posIndex++] = posVertex + 3;
+                    }
+                    posVertex += sprite.vertexData.length / 2;
+                }
+                currentGroup.size = posIndex - currentGroup.start;
+                var curVertexCount = this.vertexCount;
+                var isNewBuffer = this.checkVaoMax();
+                this.vertexBuffers[curVertexCount].upload(buffer.vertices, 0, !isNewBuffer);
+                if (hasMesh) {
+                    this.indexBuffers[curVertexCount].upload(bufferIndex, 0);
                 }
                 else {
-                    this.vertexBuffers[this.vertexCount].upload(buffer.vertices, 0, true);
+                    this.indexBuffer.bind();
                 }
-                currentUniforms = null;
                 for (i = 0; i < groupCount; i++) {
                     var group = groups[i];
                     var groupTextureCount = group.textureCount;
@@ -442,9 +523,11 @@ var pixi_heaven;
                         }
                     }
                     this.renderer.state.setBlendMode(group.blend);
-                    gl.drawElements(gl.TRIANGLES, group.size * 6, gl.UNSIGNED_SHORT, group.start * 6 * 2);
+                    gl.drawElements(gl.TRIANGLES, group.size, gl.UNSIGNED_SHORT, group.start * 2);
                 }
                 this.currentIndex = 0;
+                this.countVertex = 0;
+                this.countIndex = 0;
             };
             MultiTextureSpriteRenderer.prototype.start = function () {
                 this.renderer.bindShader(this.shader);
@@ -460,6 +543,9 @@ var pixi_heaven;
                 for (var i = 0; i < this.vaoMax; i++) {
                     if (this.vertexBuffers[i]) {
                         this.vertexBuffers[i].destroy();
+                    }
+                    if (this.indexBuffers[i]) {
+                        this.indexBuffers[i].destroy();
                     }
                     if (this.vaos[i]) {
                         this.vaos[i].destroy();
@@ -482,6 +568,7 @@ var pixi_heaven;
                 for (var i = 0; i < this.buffers.length; ++i) {
                     this.buffers[i].destroy();
                 }
+                this.buffersIndex = null;
             };
             return MultiTextureSpriteRenderer;
         }(ObjectRenderer));
@@ -708,7 +795,8 @@ var pixi_heaven;
                 _this.tintRgb = new Float32Array([1, 1, 1]);
                 _this._glDatas = {};
                 _this.uploadUvTransform = false;
-                _this.pluginName = 'meshHeaven';
+                _this.pluginName = pixi_heaven.settings.MESH_PLUGIN;
+                _this.vertexData = null;
                 _this.color = new pixi_heaven.ColorTransform();
                 _this._texture = texture;
                 if (!texture.baseTexture.hasLoaded) {
@@ -801,6 +889,27 @@ var pixi_heaven;
                     }
                 }
                 return false;
+            };
+            Mesh.prototype.calculateVertices = function () {
+                var vertices = this.vertices;
+                var n = vertices.length;
+                if (!this.vertexData || this.vertexData.length !== n) {
+                    this.vertexData = new Float32Array(n);
+                }
+                var vertexData = this.vertexData;
+                var matrix = this.transform.worldTransform;
+                var a = matrix.a;
+                var b = matrix.b;
+                var c = matrix.c;
+                var d = matrix.d;
+                var tx = matrix.tx;
+                var ty = matrix.ty;
+                for (var i = 0; i < n; i += 2) {
+                    var rawX = vertices[i];
+                    var rawY = vertices[i + 1];
+                    vertexData[i] = (a * rawX) + (c * rawY) + tx;
+                    vertexData[i + 1] = (d * rawY) + (b * rawX) + ty;
+                }
             };
             Object.defineProperty(Mesh.prototype, "texture", {
                 get: function () {
@@ -2342,23 +2451,37 @@ var pixi_heaven;
         };
         SpriteHeavenRenderer.prototype.fillVertices = function (float32View, uint32View, index, sprite, textureId) {
             var vertexData = sprite.vertexData;
-            var uvs = sprite._texture._uvs.uvsUint32;
-            var n = vertexData.length / 2;
+            var n = vertexData.length;
             var lightRgba = sprite.color.lightRgba;
             var darkRgba = sprite.color.darkRgba;
             var stride = this.vertSize;
             var oldIndex = index;
-            for (var i = 0; i < n; i++) {
-                float32View[index] = vertexData[i * 2];
-                float32View[index + 1] = vertexData[i * 2 + 1];
-                uint32View[index + 2] = uvs[i];
+            for (var i = 0; i < n; i += 2) {
+                float32View[index] = vertexData[i];
+                float32View[index + 1] = vertexData[i + 1];
                 uint32View[index + 3] = lightRgba;
                 uint32View[index + 4] = darkRgba;
                 index += stride;
             }
+            var uvs = sprite.uvs;
+            if (uvs) {
+                index = oldIndex + 2;
+                for (var i = 0; i < n; i += 2) {
+                    uint32View[index] = (((uvs[i + 1] * 65535) & 0xFFFF) << 16) | ((uvs[i] * 65535) & 0xFFFF);
+                    index += stride;
+                }
+            }
+            else {
+                var _uvs = sprite._texture._uvs.uvsUint32;
+                index = oldIndex + 2;
+                for (var i = 0; i < n; i += 2) {
+                    uint32View[index] = _uvs[i >> 1];
+                    index += stride;
+                }
+            }
             if (stride === 6) {
                 index = oldIndex + 5;
-                for (var i = 0; i < n; i++) {
+                for (var i = 0; i < n; i += 2) {
                     float32View[index] = textureId;
                     index += stride;
                 }
@@ -2373,8 +2496,6 @@ var pixi_heaven;
     var webgl;
     (function (webgl) {
         var MultiTextureSpriteRenderer = pixi_heaven.webgl.MultiTextureSpriteRenderer;
-        var GLBuffer = PIXI.glCore.GLBuffer;
-        var settings = PIXI.settings;
         var premultiplyBlendMode = PIXI.utils.premultiplyBlendMode;
         var tempArray = new Float32Array([0, 0, 0, 0]);
         var SpriteMaskedRenderer = (function (_super) {
@@ -2382,7 +2503,7 @@ var pixi_heaven;
             function SpriteMaskedRenderer() {
                 var _this = _super !== null && _super.apply(this, arguments) || this;
                 _this.shaderVert = "precision highp float;\nattribute vec2 aVertexPosition;\nattribute vec2 aTextureCoord;\nattribute vec4 aLight, aDark;\nattribute float aTextureId;\nattribute vec2 aMaskCoord;\nattribute vec4 aMaskClamp;\n\nuniform mat3 projectionMatrix;\n\nvarying vec2 vTextureCoord;\nvarying vec4 vLight, vDark;\nvarying float vTextureId;\nvarying vec2 vMaskCoord;\nvarying vec4 vMaskClamp;\n\nvoid main(void){\n    gl_Position.xyw = projectionMatrix * vec3(aVertexPosition, 1.0);\n    gl_Position.z = 0.0;\n    \n    vTextureCoord = aTextureCoord;\n    vLight = aLight;\n    vDark = aDark;\n    vTextureId = aTextureId;\n    vMaskCoord = aMaskCoord;\n    vMaskClamp = aMaskClamp;\n}\n";
-                _this.shaderFrag = "\nvarying vec2 vTextureCoord;\nvarying vec4 vLight, vDark;\nvarying float vTextureId;\nvarying vec2 vMaskCoord;\nvarying vec4 vMaskClamp;\nuniform sampler2D uSamplers[2];\nuniform sampler2D uMask;\n\nvoid main(void) {\nvec4 texColor = texture2D(uSamplers[0], vTextureCoord);\n\nfloat clip = step(3.5,\n    step(vMaskClamp.x, vMaskCoord.x) +\n    step(vMaskClamp.y, vMaskCoord.y) +\n    step(vMaskCoord.x, vMaskClamp.z) +\n    step(vMaskCoord.y, vMaskClamp.w));\n\nvec4 maskColor = texture2D(uSamplers[1], vMaskCoord);\n\nvec2 texCoord = vTextureCoord;\nvec4 fragColor;\nfragColor.a = texColor.a * vLight.a;\nfragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.rgb + texColor.rgb * vLight.rgb;\ngl_FragColor = fragColor * (vTextureId * (maskColor.a * maskColor.r * clip) + 1.0 - vTextureId);\n}";
+                _this.shaderFrag = "\nvarying vec2 vTextureCoord;\nvarying vec4 vLight, vDark;\nvarying float vTextureId;\nvarying vec2 vMaskCoord;\nvarying vec4 vMaskClamp;\nuniform sampler2D uSamplers[2];\nuniform sampler2D uMask;\n\nvoid main(void) {\nvec4 texColor = texture2D(uSamplers[0], vTextureCoord);\n\nfloat clip = step(3.5,\n    step(vMaskClamp.x, vMaskCoord.x) +\n    step(vMaskClamp.y, vMaskCoord.y) +\n    step(vMaskCoord.x, vMaskClamp.z) +\n    step(vMaskCoord.y, vMaskClamp.w));\n\nvec4 maskColor = texture2D(uSamplers[1], vMaskCoord);\n\nvec2 texCoord = vTextureCoord;\nvec4 fragColor;\nfragColor.a = texColor.a * vLight.a;\nfragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.rgb + texColor.rgb * vLight.rgb;\ngl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId);\n}";
                 return _this;
             }
             SpriteMaskedRenderer.prototype.createVao = function (vertexBuffer) {
@@ -2403,8 +2524,7 @@ var pixi_heaven;
             };
             SpriteMaskedRenderer.prototype.fillVertices = function (float32View, uint32View, index, sprite, textureId) {
                 var vertexData = sprite.vertexData;
-                var uvs = sprite._texture._uvs.uvsUint32;
-                var n = vertexData.length / 2;
+                var n = vertexData.length;
                 var lightRgba = sprite.color.lightRgba;
                 var darkRgba = sprite.color.darkRgba;
                 var stride = this.vertSize;
@@ -2416,20 +2536,36 @@ var pixi_heaven;
                     clamp = mask._texture.transform.uClampFrame;
                     maskVertexData = sprite.maskVertexData;
                 }
-                for (var i = 0; i < n; i++) {
-                    float32View[index] = vertexData[i * 2];
-                    float32View[index + 1] = vertexData[i * 2 + 1];
-                    uint32View[index + 2] = uvs[i];
+                var oldIndex = index;
+                for (var i = 0; i < n; i += 2) {
+                    float32View[index] = vertexData[i];
+                    float32View[index + 1] = vertexData[i + 1];
                     uint32View[index + 3] = lightRgba;
                     uint32View[index + 4] = darkRgba;
                     float32View[index + 5] = mask ? 1 : 0;
-                    float32View[index + 6] = maskVertexData[i * 2];
-                    float32View[index + 7] = maskVertexData[i * 2 + 1];
+                    float32View[index + 6] = maskVertexData[i];
+                    float32View[index + 7] = maskVertexData[i + 1];
                     float32View[index + 8] = clamp[0];
                     float32View[index + 9] = clamp[1];
                     float32View[index + 10] = clamp[2];
                     float32View[index + 11] = clamp[3];
                     index += stride;
+                }
+                var uvs = sprite.uvs;
+                if (uvs) {
+                    index = oldIndex + 2;
+                    for (var i = 0; i < n; i += 2) {
+                        uint32View[index] = (((uvs[i + 1] * 65535) & 0xFFFF) << 16) | ((uvs[i] * 65535) & 0xFFFF);
+                        index += stride;
+                    }
+                }
+                else {
+                    var _uvs = sprite._texture._uvs.uvsUint32;
+                    index = oldIndex + 2;
+                    for (var i = 0; i < n; i += 2) {
+                        uint32View[index] = _uvs[i >> 1];
+                        index += stride;
+                    }
                 }
             };
             SpriteMaskedRenderer.prototype.flush = function () {
@@ -2438,25 +2574,30 @@ var pixi_heaven;
                 }
                 var gl = this.renderer.gl;
                 var MAX_TEXTURES = this.MAX_TEXTURES;
-                var np2 = pixi_heaven.utils.nextPow2(this.currentIndex);
+                var np2 = pixi_heaven.utils.nextPow2((this.countVertex + 3) / 4 | 0);
                 var log2 = pixi_heaven.utils.log2(np2);
                 var buffer = this.buffers[log2];
+                np2 = pixi_heaven.utils.nextPow2((this.countIndex + 5) / 6 | 0);
+                log2 = pixi_heaven.utils.log2(np2);
+                var bufferIndex = this.buffersIndex[log2];
                 var sprites = this.sprites;
                 var groups = this.groups;
                 var float32View = buffer.float32View;
                 var uint32View = buffer.uint32View;
-                var index = 0;
                 var nextTexture, nextMaskTexture;
-                var currentTexture = null, currentMaskTexture = null;
+                var currentTexture, currentMaskTexture = null;
                 var currentUniforms = null;
                 var groupCount = 1;
                 var textureCount = 0;
                 var currentGroup = groups[0];
                 var blendMode = premultiplyBlendMode[sprites[0]._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
+                var hasMesh = false;
                 currentGroup.textureCount = 0;
                 currentGroup.start = 0;
                 currentGroup.blend = blendMode;
                 var i;
+                var posVertex = 0;
+                var posIndex = 0;
                 for (i = 0; i < this.currentIndex; ++i) {
                     var sprite = sprites[i];
                     nextTexture = sprite.texture.baseTexture;
@@ -2506,25 +2647,30 @@ var pixi_heaven;
                         currentGroup.textures[1] = nextMaskTexture || PIXI.Texture.WHITE.baseTexture;
                         textureCount = MAX_TEXTURES;
                     }
-                    this.fillVertices(float32View, uint32View, index, sprite, nextTexture._virtalBoundId);
-                    index += this.vertSize * 4;
-                }
-                currentGroup.size = i - currentGroup.start;
-                if (!settings.CAN_UPLOAD_SAME_BUFFER) {
-                    if (this.vaoMax <= this.vertexCount) {
-                        this.vaoMax++;
-                        var attrs = this.shader.attributes;
-                        var vertexBuffer = this.vertexBuffers[this.vertexCount] = GLBuffer.createVertexBuffer(gl, null, gl.STREAM_DRAW);
-                        this.vaos[this.vertexCount] = this.createVao(vertexBuffer);
+                    this.fillVertices(float32View, uint32View, posVertex * this.vertSize, sprite, nextTexture._virtalBoundId);
+                    if (sprite.indices) {
+                        var len = sprite.indices.length;
+                        for (var k = 0; k < len; k++) {
+                            bufferIndex[posIndex++] = posVertex + sprite.indices[k];
+                        }
+                        hasMesh = true;
                     }
-                    this.renderer.bindVao(this.vaos[this.vertexCount]);
-                    this.vertexBuffers[this.vertexCount].upload(buffer.vertices, 0, false);
-                    this.vertexCount++;
+                    else {
+                        bufferIndex[posIndex++] = posVertex;
+                        bufferIndex[posIndex++] = posVertex + 1;
+                        bufferIndex[posIndex++] = posVertex + 2;
+                        bufferIndex[posIndex++] = posVertex;
+                        bufferIndex[posIndex++] = posVertex + 2;
+                        bufferIndex[posIndex++] = posVertex + 3;
+                    }
+                    posVertex += sprite.vertexData.length / 2;
                 }
-                else {
-                    this.vertexBuffers[this.vertexCount].upload(buffer.vertices, 0, true);
-                }
-                currentUniforms = null;
+                currentGroup.size = posIndex - currentGroup.start;
+                var curVertexCount = this.vertexCount;
+                var isNewBuffer = this.checkVaoMax();
+                var ib = hasMesh ? this.indexBuffers[curVertexCount] : this.indexBuffer;
+                this.vertexBuffers[curVertexCount].upload(buffer.vertices, 0, !isNewBuffer);
+                ib.bind();
                 for (i = 0; i < groupCount; i++) {
                     var group = groups[i];
                     var groupTextureCount = 2;
@@ -2545,6 +2691,8 @@ var pixi_heaven;
                     gl.drawElements(gl.TRIANGLES, group.size * 6, gl.UNSIGNED_SHORT, group.start * 6 * 2);
                 }
                 this.currentIndex = 0;
+                this.countVertex = 0;
+                this.countIndex = 0;
             };
             SpriteMaskedRenderer.prototype.genShader = function () {
                 var gl = this.renderer.gl;
@@ -2581,7 +2729,9 @@ var pixi_heaven;
                 return new SpineSprite(tex, this);
             };
             Spine.prototype.newMesh = function (texture, vertices, uvs, indices, drawMode) {
-                return new pixi_heaven.mesh.Mesh(texture, vertices, uvs, indices, drawMode);
+                var m = new pixi_heaven.mesh.Mesh(texture, vertices, uvs, indices, drawMode);
+                m.pluginName = pixi_heaven.settings.SPINE_MESH_PLUGIN;
+                return m;
             };
             return Spine;
         }(PIXI.spine.Spine));
