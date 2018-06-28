@@ -274,11 +274,11 @@ namespace pixi_heaven.webgl {
 			const gl = this.renderer.gl;
 			const MAX_TEXTURES = this.MAX_TEXTURES;
 
-			let np2 = utils.nextPow2(Math.ceil((this.countVertex + 3) / 4));
+			let np2 = utils.nextPow2(Math.ceil(this.countVertex / 4));
 			let log2 = utils.log2(np2);
 			const buffer = this.buffers[log2];
 
-			np2 = utils.nextPow2(Math.ceil((this.countIndex + 5) / 6));
+			np2 = utils.nextPow2(Math.ceil(this.countIndex / 6));
 			log2 = utils.log2(np2);
 			const bufferIndex = this.buffersIndex[log2];
 

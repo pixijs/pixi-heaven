@@ -417,10 +417,10 @@ var pixi_heaven;
                 }
                 var gl = this.renderer.gl;
                 var MAX_TEXTURES = this.MAX_TEXTURES;
-                var np2 = pixi_heaven.utils.nextPow2(Math.ceil((this.countVertex + 3) / 4));
+                var np2 = pixi_heaven.utils.nextPow2(Math.ceil(this.countVertex / 4));
                 var log2 = pixi_heaven.utils.log2(np2);
                 var buffer = this.buffers[log2];
-                np2 = pixi_heaven.utils.nextPow2(Math.ceil((this.countIndex + 5) / 6));
+                np2 = pixi_heaven.utils.nextPow2(Math.ceil(this.countIndex / 6));
                 log2 = pixi_heaven.utils.log2(np2);
                 var bufferIndex = this.buffersIndex[log2];
                 var sprites = this.sprites;
