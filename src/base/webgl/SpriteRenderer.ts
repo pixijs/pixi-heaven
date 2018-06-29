@@ -178,9 +178,9 @@ namespace pixi_heaven.webgl {
 			let countVertex = 4;
 			let countIndex = 6;
 
-			if (element.vertices) {
+			if (element.indices) {
 				//mesh !
-				countVertex = element.vertices.length / 2;
+				countVertex = (element.vertices || element.vertexData).length / 2;
 				countIndex = element.indices.length;
 
 				element.calculateVertices();
