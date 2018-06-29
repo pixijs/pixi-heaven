@@ -94,17 +94,21 @@ namespace pixi_heaven {
 			tempMat.translate(anchor.x, anchor.y);
 			tempMat.prepend(tex.transform.mapCoord);
 
-			if (!this.maskVertexData) {
-				this.maskVertexData = new Float32Array(8);
+			const vertexData = this.vertexData;
+			const n = vertexData.length;
+
+			if (!this.maskVertexData || this.maskVertexData.length !== n) {
+				this.maskVertexData = new Float32Array(n);
 			}
 
-			const vertexData = this.vertexData;
 			const maskVertexData = this.maskVertexData;
 
-			for (let i = 0; i < 8; i += 2) {
+			for (let i = 0; i < n; i += 2) {
 				maskVertexData[i] = vertexData[i] * tempMat.a + vertexData[i + 1] * tempMat.c + tempMat.tx;
 				maskVertexData[i + 1] = vertexData[i] * tempMat.b + vertexData[i + 1] * tempMat.d + tempMat.ty;
 			}
 		}
 	}
+
+	mesh.Mesh.prototype.calculateMaskVertices = Sprite.prototype.calculateMaskVertices;
 }

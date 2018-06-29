@@ -14,9 +14,29 @@ namespace pixi_heaven.spine {
 		}
 
 		newMesh(texture: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number) {
-			let m = new mesh.Mesh(texture, vertices, uvs, indices, drawMode) as any;
-			m.pluginName = settings.SPINE_MESH_PLUGIN;
-			return m;
+			return new SpineMesh(texture, vertices, uvs, indices, drawMode, this) as any;
+		}
+	}
+
+	export class SpineMesh extends mesh.Mesh {
+		region: PIXI.spine.core.TextureRegion = null;
+		spine: Spine;
+
+		constructor(texture: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number,
+		            spine: Spine = null) {
+			super(texture, vertices, uvs, indices, drawMode);
+			this.spine = spine;
+			this.pluginName = settings.SPINE_MESH_PLUGIN;
+		}
+
+		_renderWebGL(renderer: PIXI.WebGLRenderer) {
+			if (this.maskSprite) {
+				this.spine.hasSpriteMask = true;
+			}
+			if (this.spine.hasSpriteMask) {
+				this.pluginName = 'spriteMasked';
+			}
+			super._renderWebGL(renderer);
 		}
 	}
 

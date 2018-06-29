@@ -101,7 +101,7 @@ spine.color.setDark(0.2, 0.2, 0.2);
 
 ### How to mask sprites with sprites
 
-Plugin adds special renderer that has faster masks than just `sprite.mask`
+Plugin adds special renderer that has faster masks than just `sprite.mask`. It also works on heaven meshes.
 
 ```js
 sprite = new PIXI.heaven.Sprite();

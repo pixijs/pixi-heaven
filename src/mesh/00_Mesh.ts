@@ -132,6 +132,13 @@ namespace pixi_heaven.mesh {
 		vertexData: Float32Array = null;
 
 		/**
+		 * Same as sprite maskVertexData
+		 */
+		maskVertexData: Float32Array = null;
+
+		maskSprite: PIXI.Sprite = null;
+
+		/**
 		 * @param {PIXI.Texture} texture - The texture to use
 		 * @param {Float32Array} [vertices] - if you want to specify the vertices
 		 * @param {Float32Array} [uvs] - if you want to specify the uvs
@@ -342,6 +349,10 @@ namespace pixi_heaven.mesh {
 				vertexData[i] = (a * rawX) + (c * rawY) + tx;
 				vertexData[i+1] = (d * rawY) + (b * rawX) + ty;
 			}
+		}
+
+		calculateMaskVertices() {
+			// actual implementation is in Sprite class
 		}
 
 		/**
