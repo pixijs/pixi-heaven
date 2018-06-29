@@ -7,10 +7,8 @@ This is heaven for sprites. Want to color them better? Wanna use advanced colors
 Done:
 
 * Advanced color modes
-
-TO-DO:
-
 * Polygon packing
+* Mesh batching
 
 ### Be careful!
 
