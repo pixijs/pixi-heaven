@@ -797,6 +797,8 @@ var pixi_heaven;
                 _this.uploadUvTransform = false;
                 _this.pluginName = pixi_heaven.settings.MESH_PLUGIN;
                 _this.vertexData = null;
+                _this.maskVertexData = null;
+                _this.maskSprite = null;
                 _this.color = new pixi_heaven.ColorTransform();
                 _this._texture = texture;
                 if (!texture.baseTexture.hasLoaded) {
@@ -910,6 +912,8 @@ var pixi_heaven;
                     vertexData[i] = (a * rawX) + (c * rawY) + tx;
                     vertexData[i + 1] = (d * rawY) + (b * rawX) + ty;
                 }
+            };
+            Mesh.prototype.calculateMaskVertices = function () {
             };
             Object.defineProperty(Mesh.prototype, "texture", {
                 get: function () {
@@ -2408,12 +2412,13 @@ var pixi_heaven;
             tempMat.scale(1.0 / orig.width, 1.0 / orig.height);
             tempMat.translate(anchor.x, anchor.y);
             tempMat.prepend(tex.transform.mapCoord);
-            if (!this.maskVertexData) {
-                this.maskVertexData = new Float32Array(8);
-            }
             var vertexData = this.vertexData;
+            var n = vertexData.length;
+            if (!this.maskVertexData || this.maskVertexData.length !== n) {
+                this.maskVertexData = new Float32Array(n);
+            }
             var maskVertexData = this.maskVertexData;
-            for (var i = 0; i < 8; i += 2) {
+            for (var i = 0; i < n; i += 2) {
                 maskVertexData[i] = vertexData[i] * tempMat.a + vertexData[i + 1] * tempMat.c + tempMat.tx;
                 maskVertexData[i + 1] = vertexData[i] * tempMat.b + vertexData[i + 1] * tempMat.d + tempMat.ty;
             }
@@ -2421,6 +2426,7 @@ var pixi_heaven;
         return Sprite;
     }(PIXI.Sprite));
     pixi_heaven.Sprite = Sprite;
+    pixi_heaven.mesh.Mesh.prototype.calculateMaskVertices = Sprite.prototype.calculateMaskVertices;
 })(pixi_heaven || (pixi_heaven = {}));
 var pixi_heaven;
 (function (pixi_heaven) {
@@ -2729,13 +2735,33 @@ var pixi_heaven;
                 return new SpineSprite(tex, this);
             };
             Spine.prototype.newMesh = function (texture, vertices, uvs, indices, drawMode) {
-                var m = new pixi_heaven.mesh.Mesh(texture, vertices, uvs, indices, drawMode);
-                m.pluginName = pixi_heaven.settings.SPINE_MESH_PLUGIN;
-                return m;
+                return new SpineMesh(texture, vertices, uvs, indices, drawMode, this);
             };
             return Spine;
         }(PIXI.spine.Spine));
         spine_1.Spine = Spine;
+        var SpineMesh = (function (_super) {
+            __extends(SpineMesh, _super);
+            function SpineMesh(texture, vertices, uvs, indices, drawMode, spine) {
+                if (spine === void 0) { spine = null; }
+                var _this = _super.call(this, texture, vertices, uvs, indices, drawMode) || this;
+                _this.region = null;
+                _this.spine = spine;
+                _this.pluginName = pixi_heaven.settings.SPINE_MESH_PLUGIN;
+                return _this;
+            }
+            SpineMesh.prototype._renderWebGL = function (renderer) {
+                if (this.maskSprite) {
+                    this.spine.hasSpriteMask = true;
+                }
+                if (this.spine.hasSpriteMask) {
+                    this.pluginName = 'spriteMasked';
+                }
+                _super.prototype._renderWebGL.call(this, renderer);
+            };
+            return SpineMesh;
+        }(pixi_heaven.mesh.Mesh));
+        spine_1.SpineMesh = SpineMesh;
         var SpineSprite = (function (_super) {
             __extends(SpineSprite, _super);
             function SpineSprite(tex, spine) {

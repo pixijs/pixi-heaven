@@ -221,6 +221,8 @@ declare module PIXI.heaven.mesh {
         pluginName: string;
         _uvTransform: PIXI.TextureMatrix;
         vertexData: Float32Array;
+        maskVertexData: Float32Array;
+        maskSprite: PIXI.Sprite;
         constructor(texture?: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number);
         updateTransform(): void;
         _renderWebGL(renderer: PIXI.WebGLRenderer): void;
@@ -232,6 +234,7 @@ declare module PIXI.heaven.mesh {
         _calculateBounds(): void;
         containsPoint(point: PIXI.PointLike): boolean;
         calculateVertices(): void;
+        calculateMaskVertices(): void;
         texture: PIXI.Texture;
         enableColors(): void;
         setRGB(rgb: Float32Array, dark: boolean): void;
@@ -514,6 +517,12 @@ declare module PIXI.heaven.spine {
         constructor(spineData: PIXI.spine.core.SkeletonData);
         newSprite(tex: PIXI.Texture): any;
         newMesh(texture: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number): any;
+    }
+    class SpineMesh extends mesh.Mesh {
+        region: PIXI.spine.core.TextureRegion;
+        spine: Spine;
+        constructor(texture: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number, spine?: Spine);
+        _renderWebGL(renderer: PIXI.WebGLRenderer): void;
     }
     class SpineSprite extends Sprite {
         region: PIXI.spine.core.TextureRegion;
