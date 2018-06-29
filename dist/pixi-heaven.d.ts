@@ -358,6 +358,14 @@ declare module PIXI.heaven.mesh {
     }
 }
 declare module PIXI.heaven {
+    class TexturePolygon {
+        vertices: ArrayLike<number>;
+        uvs: ArrayLike<number>;
+        indices: ArrayLike<number>;
+        constructor(vertices: ArrayLike<number>, uvs: ArrayLike<number>, indices: ArrayLike<number>);
+    }
+}
+declare module PIXI.heaven {
     let settings: {
         MESH_PLUGIN: string;
         SPINE_MESH_PLUGIN: string;
@@ -486,11 +494,15 @@ declare module PIXI.heaven {
         color: ColorTransform;
         maskSprite: PIXI.Sprite;
         maskVertexData: Float32Array;
+        uvs: Float32Array;
+        indices: Uint16Array;
         constructor(texture: PIXI.Texture);
         _tintRGB: number;
         tint: number;
         updateTransform(): void;
         _onTextureUpdate(): void;
+        _calculateBounds(): void;
+        calculateVertices(): void;
         calculateMaskVertices(): void;
     }
 }

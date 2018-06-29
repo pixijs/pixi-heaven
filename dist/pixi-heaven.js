@@ -357,8 +357,8 @@ var pixi_heaven;
                 }
                 var countVertex = 4;
                 var countIndex = 6;
-                if (element.vertices) {
-                    countVertex = element.vertices.length / 2;
+                if (element.indices) {
+                    countVertex = (element.vertices || element.vertexData).length / 2;
                     countIndex = element.indices.length;
                     element.calculateVertices();
                 }
@@ -1837,6 +1837,67 @@ var pixi_heaven;
 })(pixi_heaven || (pixi_heaven = {}));
 var pixi_heaven;
 (function (pixi_heaven) {
+    var TexturePolygon = (function () {
+        function TexturePolygon(vertices, uvs, indices) {
+            this.vertices = vertices;
+            this.uvs = uvs;
+            this.indices = indices;
+        }
+        return TexturePolygon;
+    }());
+    pixi_heaven.TexturePolygon = TexturePolygon;
+    PIXI.Spritesheet.prototype._processFrames = function (initialFrameIndex) {
+        var meta = this.data.meta;
+        var frameIndex = initialFrameIndex;
+        var maxFrames = PIXI.Spritesheet.BATCH_SIZE;
+        var sourceScale = this.baseTexture.sourceScale;
+        while (frameIndex - initialFrameIndex < maxFrames && frameIndex < this._frameKeys.length) {
+            var i = this._frameKeys[frameIndex];
+            var data = this._frames[i];
+            var rect = data.frame;
+            if (rect) {
+                var frame = null;
+                var trim = null;
+                var sourceSize = data.trimmed !== false && data.sourceSize
+                    ? data.sourceSize : data.frame;
+                var orig = new PIXI.Rectangle(0, 0, Math.floor(sourceSize.w * sourceScale) / this.resolution, Math.floor(sourceSize.h * sourceScale) / this.resolution);
+                if (data.rotated) {
+                    frame = new PIXI.Rectangle(Math.floor(rect.x * sourceScale) / this.resolution, Math.floor(rect.y * sourceScale) / this.resolution, Math.floor(rect.h * sourceScale) / this.resolution, Math.floor(rect.w * sourceScale) / this.resolution);
+                }
+                else {
+                    frame = new PIXI.Rectangle(Math.floor(rect.x * sourceScale) / this.resolution, Math.floor(rect.y * sourceScale) / this.resolution, Math.floor(rect.w * sourceScale) / this.resolution, Math.floor(rect.h * sourceScale) / this.resolution);
+                }
+                if (data.trimmed !== false && data.spriteSourceSize) {
+                    trim = new PIXI.Rectangle(Math.floor(data.spriteSourceSize.x * sourceScale) / this.resolution, Math.floor(data.spriteSourceSize.y * sourceScale) / this.resolution, Math.floor(rect.w * sourceScale) / this.resolution, Math.floor(rect.h * sourceScale) / this.resolution);
+                }
+                this.textures[i] = new PIXI.Texture(this.baseTexture, frame, orig, trim, data.rotated ? 2 : 0);
+                if (data.vertices) {
+                    var vertices = new Float32Array(data.vertices.length * 2);
+                    for (var i_1 = 0; i_1 < data.vertices.length; i_1++) {
+                        vertices[i_1 * 2] = Math.floor(data.vertices[i_1][0] * sourceScale) / this.resolution;
+                        vertices[i_1 * 2 + 1] = Math.floor(data.vertices[i_1][1] * sourceScale) / this.resolution;
+                    }
+                    var uvs = new Float32Array(data.verticesUV.length * 2);
+                    for (var i_2 = 0; i_2 < data.verticesUV.length; i_2++) {
+                        uvs[i_2 * 2] = data.verticesUV[i_2][0] / meta.size.w;
+                        uvs[i_2 * 2 + 1] = data.verticesUV[i_2][1] / meta.size.h;
+                    }
+                    var indices = new Uint16Array(data.triangles.length * 3);
+                    for (var i_3 = 0; i_3 < data.triangles.length; i_3++) {
+                        indices[i_3 * 3] = data.triangles[i_3][0];
+                        indices[i_3 * 3 + 1] = data.triangles[i_3][1];
+                        indices[i_3 * 3 + 2] = data.triangles[i_3][2];
+                    }
+                    this.textures[i].polygon = new TexturePolygon(vertices, uvs, indices);
+                }
+                PIXI.Texture.addToCache(this.textures[i], i);
+            }
+            frameIndex++;
+        }
+    };
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
     var AtlasOptions = (function () {
         function AtlasOptions(src) {
             this.width = 2048;
@@ -2341,6 +2402,8 @@ var pixi_heaven;
             _this.color = new pixi_heaven.ColorTransform();
             _this.maskSprite = null;
             _this.maskVertexData = null;
+            _this.uvs = null;
+            _this.indices = null;
             _this.pluginName = 'spriteHeaven';
             if (_this.texture.valid)
                 _this._onTextureUpdate();
@@ -2393,6 +2456,83 @@ var pixi_heaven;
             }
             if (this._height) {
                 this.scale.y = sign(this.scale.y) * this._height / this._texture.orig.height;
+            }
+        };
+        Sprite.prototype._calculateBounds = function () {
+            var polygon = this._texture.polygon;
+            var trim = this._texture.trim;
+            var orig = this._texture.orig;
+            if (!polygon && (!trim || (trim.width === orig.width && trim.height === orig.height))) {
+                this.calculateVertices();
+                this._bounds.addQuad(this.vertexData);
+            }
+            else {
+                this.calculateTrimmedVertices();
+                this._bounds.addQuad(this.vertexTrimmedData);
+            }
+        };
+        Sprite.prototype.calculateVertices = function () {
+            var transform = this.transform;
+            var texture = this._texture;
+            if (this._transformID === transform._worldID && this._textureID === texture._updateID) {
+                return;
+            }
+            this._transformID = transform._worldID;
+            this._textureID = texture._updateID;
+            var wt = this.transform.worldTransform;
+            var a = wt.a;
+            var b = wt.b;
+            var c = wt.c;
+            var d = wt.d;
+            var tx = wt.tx;
+            var ty = wt.ty;
+            var anchor = this._anchor;
+            var orig = texture.orig;
+            if (texture.polygon) {
+                this.uvs = texture.polygon.uvs;
+                this.indices = texture.polygon.indices;
+                var vertices = texture.polygon.vertices;
+                var n = vertices.length;
+                if (this.vertexData.length !== n) {
+                    this.vertexData = new Float32Array(n);
+                }
+                var vertexData = this.vertexData;
+                var dx = -(anchor._x * orig.width);
+                var dy = -(anchor._y * orig.height);
+                for (var i = 0; i < n; i += 2) {
+                    var x = vertices[i] + dx;
+                    var y = vertices[i + 1] + dy;
+                    vertexData[i] = x * a + y * c + tx;
+                    vertexData[i + 1] = x * b + y * d + ty;
+                }
+            }
+            else {
+                var vertexData = this.vertexData;
+                var trim = texture.trim;
+                var w0 = 0;
+                var w1 = 0;
+                var h0 = 0;
+                var h1 = 0;
+                if (trim) {
+                    w1 = trim.x - (anchor._x * orig.width);
+                    w0 = w1 + trim.width;
+                    h1 = trim.y - (anchor._y * orig.height);
+                    h0 = h1 + trim.height;
+                }
+                else {
+                    w1 = -anchor._x * orig.width;
+                    w0 = w1 + orig.width;
+                    h1 = -anchor._y * orig.height;
+                    h0 = h1 + orig.height;
+                }
+                vertexData[0] = (a * w1) + (c * h1) + tx;
+                vertexData[1] = (d * h1) + (b * w1) + ty;
+                vertexData[2] = (a * w0) + (c * h1) + tx;
+                vertexData[3] = (d * h1) + (b * w0) + ty;
+                vertexData[4] = (a * w0) + (c * h0) + tx;
+                vertexData[5] = (d * h0) + (b * w0) + ty;
+                vertexData[6] = (a * w1) + (c * h0) + tx;
+                vertexData[7] = (d * h0) + (b * w1) + ty;
             }
         };
         Sprite.prototype.calculateMaskVertices = function () {
