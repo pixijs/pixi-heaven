@@ -1,6 +1,43 @@
 /// <reference types="pixi.js" />
 /// <reference types="webgl-ext" />
 declare module PIXI.heaven {
+    interface IFrameObject {
+        texture: PIXI.Texture;
+        time: number;
+    }
+    interface ITextureAnimationTarget {
+        texture: PIXI.Texture;
+        animState: AnimationState;
+    }
+    class AnimationState {
+        texture: PIXI.Texture;
+        _textures: Array<PIXI.Texture>;
+        _durations: Array<number>;
+        _autoUpdate: boolean;
+        animationSpeed: number;
+        _target: ITextureAnimationTarget;
+        loop: boolean;
+        onComplete: Function;
+        onFrameChange: Function;
+        onLoop: Function;
+        _currentTime: number;
+        playing: boolean;
+        constructor(textures: Array<PIXI.Texture> | Array<IFrameObject>, autoUpdate?: boolean);
+        stop(): void;
+        play(): void;
+        gotoAndStop(frameNumber: number): void;
+        gotoAndPlay(frameNumber: number): void;
+        update(deltaTime: number): void;
+        updateTexture(): void;
+        bind(target: ITextureAnimationTarget): void;
+        static fromFrames(frames: Array<string>): AnimationState;
+        static fromImages(images: Array<string>): AnimationState;
+        readonly totalFrames: number;
+        textures: PIXI.Texture[];
+        readonly currentFrame: number;
+    }
+}
+declare module PIXI.heaven {
     import Rectangle = PIXI.Rectangle;
     class AtlasNode<T> {
         childs: Array<AtlasNode<T>>;
@@ -148,7 +185,7 @@ declare module PIXI.heaven {
         extensions: Extensions;
         constructor(renderer: PIXI.WebGLRenderer);
         onContextChange: (gl: WebGLRenderingContext) => void;
-        updateTexture: (texture_: PIXI.BaseTexture | PIXI.Texture, location?: number) => any;
+        updateTexture: (texture_: PIXI.Texture | PIXI.BaseTexture, location?: number) => any;
         setStyle(texture: PIXI.BaseTexture, glTexture: PIXI.glCore.GLTexture): void;
         destroy(): void;
     }
@@ -202,8 +239,9 @@ declare module PIXI.heaven {
     function atlasChecker(): (resource: Resource, next: () => any) => any;
 }
 declare module PIXI.heaven.mesh {
-    class Mesh extends PIXI.Container {
+    class Mesh extends PIXI.Container implements ITextureAnimationTarget {
         _texture: PIXI.Texture;
+        animState: AnimationState;
         uvs: Float32Array;
         vertices: Float32Array;
         indices: Uint16Array;
@@ -223,7 +261,7 @@ declare module PIXI.heaven.mesh {
         vertexData: Float32Array;
         maskVertexData: Float32Array;
         maskSprite: PIXI.Sprite;
-        constructor(texture?: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number);
+        constructor(texture: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array, drawMode?: number);
         updateTransform(): void;
         _renderWebGL(renderer: PIXI.WebGLRenderer): void;
         _renderCanvas(renderer: PIXI.CanvasRenderer): void;
@@ -244,6 +282,7 @@ declare module PIXI.heaven.mesh {
             TRIANGLE_MESH: number;
             TRIANGLES: number;
         };
+        destroy(options?: PIXI.DestroyOptions | boolean): void;
     }
 }
 declare module PIXI.heaven.mesh {
@@ -490,12 +529,13 @@ declare module PIXI {
 declare module PIXI.heaven {
 }
 declare module PIXI.heaven {
-    class Sprite extends PIXI.Sprite {
+    class Sprite extends PIXI.Sprite implements ITextureAnimationTarget {
         color: ColorTransform;
         maskSprite: PIXI.Sprite;
         maskVertexData: Float32Array;
         uvs: Float32Array;
         indices: Uint16Array;
+        animState: AnimationState;
         constructor(texture: PIXI.Texture);
         _tintRGB: number;
         tint: number;
@@ -504,6 +544,7 @@ declare module PIXI.heaven {
         _calculateBounds(): void;
         calculateVertices(): void;
         calculateMaskVertices(): void;
+        destroy(options?: PIXI.DestroyOptions | boolean): void;
     }
 }
 declare module PIXI.heaven {

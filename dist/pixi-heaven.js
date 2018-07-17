@@ -87,6 +87,179 @@ var pixi_heaven;
 PIXI.heaven = pixi_heaven;
 var pixi_heaven;
 (function (pixi_heaven) {
+    var AnimationState = (function () {
+        function AnimationState(textures, autoUpdate) {
+            this._textures = null;
+            this._durations = null;
+            this.animationSpeed = 1;
+            this.loop = true;
+            this.onComplete = null;
+            this.onFrameChange = null;
+            this.onLoop = null;
+            this._currentTime = 0;
+            this.playing = false;
+            this.texture = textures[0] instanceof PIXI.Texture ? textures[0] : textures[0].texture;
+            this.textures = textures;
+            this._autoUpdate = autoUpdate !== false;
+        }
+        AnimationState.prototype.stop = function () {
+            if (!this.playing) {
+                return;
+            }
+            this.playing = false;
+            if (this._autoUpdate) {
+                PIXI.ticker.shared.remove(this.update, this);
+            }
+        };
+        AnimationState.prototype.play = function () {
+            if (this.playing) {
+                return;
+            }
+            this.playing = true;
+            if (this._autoUpdate) {
+                PIXI.ticker.shared.add(this.update, this, PIXI.UPDATE_PRIORITY.HIGH);
+            }
+        };
+        AnimationState.prototype.gotoAndStop = function (frameNumber) {
+            this.stop();
+            var previousFrame = this.currentFrame;
+            this._currentTime = frameNumber;
+            if (previousFrame !== this.currentFrame) {
+                this.updateTexture();
+            }
+        };
+        AnimationState.prototype.gotoAndPlay = function (frameNumber) {
+            var previousFrame = this.currentFrame;
+            this._currentTime = frameNumber;
+            if (previousFrame !== this.currentFrame) {
+                this.updateTexture();
+            }
+            this.play();
+        };
+        AnimationState.prototype.update = function (deltaTime) {
+            var elapsed = this.animationSpeed * deltaTime;
+            var previousFrame = this.currentFrame;
+            if (this._durations !== null) {
+                var lag = this._currentTime % 1 * this._durations[this.currentFrame];
+                lag += elapsed / 60 * 1000;
+                while (lag < 0) {
+                    this._currentTime--;
+                    lag += this._durations[this.currentFrame];
+                }
+                var sign = this.animationSpeed * deltaTime;
+                if (sign < 0)
+                    sign = -1;
+                else if (sign > 0)
+                    sign = 1;
+                this._currentTime = Math.floor(this._currentTime);
+                while (lag >= this._durations[this.currentFrame]) {
+                    lag -= this._durations[this.currentFrame] * sign;
+                    this._currentTime += sign;
+                }
+                this._currentTime += lag / this._durations[this.currentFrame];
+            }
+            else {
+                this._currentTime += elapsed;
+            }
+            if (this._currentTime < 0 && !this.loop) {
+                this.gotoAndStop(0);
+                if (this.onComplete) {
+                    this.onComplete();
+                }
+            }
+            else if (this._currentTime >= this._textures.length && !this.loop) {
+                this.gotoAndStop(this._textures.length - 1);
+                if (this.onComplete) {
+                    this.onComplete();
+                }
+            }
+            else if (previousFrame !== this.currentFrame) {
+                if (this.loop && this.onLoop) {
+                    if (this.animationSpeed > 0 && this.currentFrame < previousFrame) {
+                        this.onLoop();
+                    }
+                    else if (this.animationSpeed < 0 && this.currentFrame > previousFrame) {
+                        this.onLoop();
+                    }
+                }
+                this.updateTexture();
+            }
+        };
+        AnimationState.prototype.updateTexture = function () {
+            this.texture = this._textures[this.currentFrame];
+            if (this._target) {
+                this._target.texture = this.texture;
+            }
+            if (this.onFrameChange) {
+                this.onFrameChange(this.currentFrame);
+            }
+        };
+        AnimationState.prototype.bind = function (target) {
+            this._target = target;
+            target.animState = this;
+        };
+        AnimationState.fromFrames = function (frames) {
+            var textures = [];
+            for (var i = 0; i < frames.length; ++i) {
+                textures.push(PIXI.Texture.fromFrame(frames[i]));
+            }
+            return new AnimationState(textures);
+        };
+        AnimationState.fromImages = function (images) {
+            var textures = [];
+            for (var i = 0; i < images.length; ++i) {
+                textures.push(PIXI.Texture.fromImage(images[i]));
+            }
+            return new AnimationState(textures);
+        };
+        Object.defineProperty(AnimationState.prototype, "totalFrames", {
+            get: function () {
+                return this._textures.length;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(AnimationState.prototype, "textures", {
+            get: function () {
+                return this._textures;
+            },
+            set: function (value) {
+                if (value[0] instanceof PIXI.Texture) {
+                    this._textures = value;
+                    this._durations = null;
+                }
+                else {
+                    this._textures = [];
+                    this._durations = [];
+                    for (var i = 0; i < value.length; i++) {
+                        var val = value[i];
+                        this._textures.push(val.texture);
+                        this._durations.push(val.time);
+                    }
+                }
+                this.gotoAndStop(0);
+                this.updateTexture();
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(AnimationState.prototype, "currentFrame", {
+            get: function () {
+                var currentFrame = Math.floor(this._currentTime) % this._textures.length;
+                if (currentFrame < 0) {
+                    currentFrame += this._textures.length;
+                }
+                return currentFrame;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return AnimationState;
+    }());
+    pixi_heaven.AnimationState = AnimationState;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
     var Rectangle = PIXI.Rectangle;
     var INF = 1 << 20;
     var AtlasNode = (function () {
@@ -785,9 +958,9 @@ var pixi_heaven;
         var Mesh = (function (_super) {
             __extends(Mesh, _super);
             function Mesh(texture, vertices, uvs, indices, drawMode) {
-                if (texture === void 0) { texture = PIXI.Texture.EMPTY; }
                 if (drawMode === void 0) { drawMode = PIXI.mesh.Mesh.DRAW_MODES.TRIANGLE_MESH; }
                 var _this = _super.call(this) || this;
+                _this.animState = null;
                 _this.dirty = 0;
                 _this.indexDirty = 0;
                 _this.blendMode = PIXI.BLEND_MODES.NORMAL;
@@ -800,6 +973,7 @@ var pixi_heaven;
                 _this.maskVertexData = null;
                 _this.maskSprite = null;
                 _this.color = new pixi_heaven.ColorTransform();
+                texture = texture || PIXI.Texture.EMPTY;
                 _this._texture = texture;
                 if (!texture.baseTexture.hasLoaded) {
                     texture.once('update', _this._onTextureUpdate, _this);
@@ -966,6 +1140,42 @@ var pixi_heaven;
                 enumerable: true,
                 configurable: true
             });
+            Mesh.prototype.destroy = function (options) {
+                if (this.animState) {
+                    this.animState.stop();
+                    this.animState = null;
+                }
+                for (var id in this._glDatas) {
+                    var data = this._glDatas[id];
+                    if (data.destroy) {
+                        data.destroy();
+                    }
+                    else {
+                        if (data.vertexBuffer) {
+                            data.vertexBuffer.destroy();
+                            data.vertexBuffer = null;
+                        }
+                        if (data.indexBuffer) {
+                            data.indexBuffer.destroy();
+                            data.indexBuffer = null;
+                        }
+                        if (data.colorBuffer) {
+                            data.colorBuffer.destroy();
+                            data.colorBuffer = null;
+                        }
+                        if (data.uvBuffer) {
+                            data.uvBuffer.destroy();
+                            data.uvBuffer = null;
+                        }
+                        if (data.vao) {
+                            data.vao.destroy();
+                            data.vao = null;
+                        }
+                    }
+                }
+                this._glDatas = null;
+                _super.prototype.destroy.call(this, options);
+            };
             Mesh.DRAW_MODES = PIXI.mesh.Mesh.DRAW_MODES;
             return Mesh;
         }(PIXI.Container));
@@ -995,8 +1205,8 @@ var pixi_heaven;
                 _this._verticesX = verticesX || 2;
                 _this._verticesY = verticesY || 2;
                 _this._direction = (direction || 0) & (~1);
-                _this._lastWidth = texture.orig.width;
-                _this._lastHeight = texture.orig.height;
+                _this._lastWidth = _this._texture.orig.width;
+                _this._lastHeight = _this._texture.orig.height;
                 _this._width = 0;
                 _this._height = 0;
                 _this._anchor = new PIXI.ObservablePoint(_this._onAnchorUpdate, _this);
@@ -2404,6 +2614,7 @@ var pixi_heaven;
             _this.maskVertexData = null;
             _this.uvs = null;
             _this.indices = null;
+            _this.animState = null;
             _this.pluginName = 'spriteHeaven';
             if (_this.texture.valid)
                 _this._onTextureUpdate();
@@ -2562,6 +2773,13 @@ var pixi_heaven;
                 maskVertexData[i] = vertexData[i] * tempMat.a + vertexData[i + 1] * tempMat.c + tempMat.tx;
                 maskVertexData[i + 1] = vertexData[i] * tempMat.b + vertexData[i + 1] * tempMat.d + tempMat.ty;
             }
+        };
+        Sprite.prototype.destroy = function (options) {
+            if (this.animState) {
+                this.animState.stop();
+                this.animState = null;
+            }
+            _super.prototype.destroy.call(this, options);
         };
         return Sprite;
     }(PIXI.Sprite));
