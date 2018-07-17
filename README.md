@@ -2,7 +2,9 @@
 
 This is heaven for sprites. Want to color them better? Wanna use advanced colors? Its all here!
 
-**REQUIRES** [pixi-spine](https://github.com/pixijs/pixi-spine). That means you have to include spine before heaven.
+Typescript definition **REQUIRE** [pixi-spine](https://github.com/pixijs/pixi-spine). That means you have to include spine before heaven.
+
+[Examples](https://gameofbombs.github.io/examples-heaven/#/basics/basic.js) are in their own [repo](https://github.com/gameofbombs/examples-heaven/).  
 
 Done:
 
@@ -144,6 +146,18 @@ strip.setRGB(rgb);
 for (var i=0;i<len*3;i++) rgb[i] = Math.random() * 0.5;
 strip.setRGB(rgb, true);
 ```
+
+### Animation
+
+Unlike pixiJS vanilla  `AnimatedSprite`, here animation is a component:
+
+```js
+new PIXI.heaven.AnimationState(frames).bind(rope);
+rope.animState.gotoAndStop(2);
+```
+
+It still uses `PIXI.ticker.shared` if you dont specify `autoUpdate=false`. 
+It will be stopped and destroyed with the bound element.
 
 ## Building
 

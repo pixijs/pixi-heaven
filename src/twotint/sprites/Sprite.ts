@@ -3,12 +3,13 @@ namespace pixi_heaven {
 
 	const tempMat = new PIXI.Matrix();
 
-	export class Sprite extends PIXI.Sprite {
+	export class Sprite extends PIXI.Sprite implements ITextureAnimationTarget {
 		color = new ColorTransform();
 		maskSprite: PIXI.Sprite = null;
 		maskVertexData: Float32Array = null;
 		uvs: Float32Array = null;
 		indices: Uint16Array = null;
+		animState: AnimationState = null;
 
 		constructor(texture: PIXI.Texture) {
 			super(texture);
@@ -220,6 +221,14 @@ namespace pixi_heaven {
 				maskVertexData[i] = vertexData[i] * tempMat.a + vertexData[i + 1] * tempMat.c + tempMat.tx;
 				maskVertexData[i + 1] = vertexData[i] * tempMat.b + vertexData[i + 1] * tempMat.d + tempMat.ty;
 			}
+		}
+
+		destroy(options?: PIXI.DestroyOptions | boolean) {
+			if (this.animState) {
+				this.animState.stop();
+				this.animState = null;
+			}
+			super.destroy(options);
 		}
 	}
 

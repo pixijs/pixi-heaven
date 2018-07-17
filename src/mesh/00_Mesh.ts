@@ -8,7 +8,7 @@ namespace pixi_heaven.mesh {
 	 * @extends PIXI.Container
 	 * @memberof PIXI.mesh
 	 */
-	export class Mesh extends PIXI.Container {
+	export class Mesh extends PIXI.Container implements ITextureAnimationTarget {
 		/**
 		 * The texture of the Mesh
 		 *
@@ -16,6 +16,8 @@ namespace pixi_heaven.mesh {
 		 * @private
 		 */
 		_texture: PIXI.Texture;
+
+		animState: AnimationState = null;
 
 		/**
 		 * The Uvs of the Mesh
@@ -145,9 +147,10 @@ namespace pixi_heaven.mesh {
 		 * @param {Uint16Array} [indices] - if you want to specify the indices
 		 * @param {number} [drawMode] - the drawMode, can be any of the Mesh.DRAW_MODES consts
 		 */
-		constructor(texture: PIXI.Texture = PIXI.Texture.EMPTY, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array,
+		constructor(texture: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array, indices?: Uint16Array,
 		            drawMode: number = PIXI.mesh.Mesh.DRAW_MODES.TRIANGLE_MESH) {
 			super();
+			texture = texture || PIXI.Texture.EMPTY;
 			this._texture = texture;
 
 			if (!texture.baseTexture.hasLoaded) {
@@ -431,5 +434,54 @@ namespace pixi_heaven.mesh {
 		}
 
 		static DRAW_MODES = PIXI.mesh.Mesh.DRAW_MODES;
+
+		destroy(options?: PIXI.DestroyOptions | boolean) {
+			if (this.animState) {
+				this.animState.stop();
+				this.animState = null;
+			}
+
+			for (const id in this._glDatas)
+			{
+				const data = this._glDatas[id];
+
+				if (data.destroy)
+				{
+					data.destroy();
+				}
+				else
+				{
+					if (data.vertexBuffer)
+					{
+						data.vertexBuffer.destroy();
+						data.vertexBuffer = null;
+					}
+					if (data.indexBuffer)
+					{
+						data.indexBuffer.destroy();
+						data.indexBuffer = null;
+					}
+					if (data.colorBuffer)
+					{
+						data.colorBuffer.destroy();
+						data.colorBuffer = null;
+					}
+					if (data.uvBuffer)
+					{
+						data.uvBuffer.destroy();
+						data.uvBuffer = null;
+					}
+					if (data.vao)
+					{
+						data.vao.destroy();
+						data.vao = null;
+					}
+				}
+			}
+
+			this._glDatas = null;
+
+			super.destroy(options);
+		}
 	}
 }

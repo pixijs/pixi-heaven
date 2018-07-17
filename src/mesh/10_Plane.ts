@@ -80,8 +80,8 @@ namespace pixi_heaven.mesh {
 
 			this._direction = (direction || 0) & (~1);
 
-			this._lastWidth = texture.orig.width;
-			this._lastHeight = texture.orig.height;
+			this._lastWidth = this._texture.orig.width;
+			this._lastHeight = this._texture.orig.height;
 
 			this._width = 0;
 			this._height = 0;
