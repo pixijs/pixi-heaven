@@ -196,6 +196,8 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 				// they have all ready been calculated so we just need to push them into the buffer.
 				const sprite = sprites[i];
 
+				sprites[i] = null;
+
 				nextTexture = (sprite as any).texture.baseTexture;
 				nextMaskTexture = null;
 

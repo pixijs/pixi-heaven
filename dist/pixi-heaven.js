@@ -617,6 +617,7 @@ var pixi_heaven;
                 var posIndex = 0;
                 for (i = 0; i < this.currentIndex; ++i) {
                     var sprite = sprites[i];
+                    sprites[i] = null;
                     nextTexture = sprite._texture.baseTexture;
                     var spriteBlendMode = premultiplyBlendMode[Number(nextTexture.premultipliedAlpha)][sprite.blendMode];
                     if (blendMode !== spriteBlendMode) {
@@ -2964,6 +2965,7 @@ var pixi_heaven;
                 var posIndex = 0;
                 for (i = 0; i < this.currentIndex; ++i) {
                     var sprite = sprites[i];
+                    sprites[i] = null;
                     nextTexture = sprite.texture.baseTexture;
                     nextMaskTexture = null;
                     if (sprite.maskSprite) {
