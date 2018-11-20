@@ -29,7 +29,7 @@ namespace pixi_heaven.webgl {
 			}
 
 			if (i < maxTextures - 1) {
-				src += `if(textureId == ${i}.0)`;
+				src += `if(textureId < ${i}.5)`;
 			}
 
 			src += '\n{';

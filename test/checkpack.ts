@@ -1,4 +1,5 @@
 import 'pixi.js';
+import 'pixi-spine';
 import '../dist/pixi-heaven.js';
 
 //@../node_modules/pixi.js/dist/pixi.min.js

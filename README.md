@@ -2,8 +2,6 @@
 
 This is heaven for sprites. Want to color them better? Wanna use advanced colors? Its all here!
 
-Typescript definition **REQUIRE** [pixi-spine](https://github.com/pixijs/pixi-spine). That means you have to include spine before heaven.
-
 [Examples](https://gameofbombs.github.io/examples-heaven/#/basics/basic.js) are in their own [repo](https://github.com/gameofbombs/examples-heaven/).  
 
 Done:
@@ -18,9 +16,20 @@ It can affect performance.
 Though what is performance, when you game looks like s@#$? 
 Spawn fewer objects but make it prettier!
 
+### Integration with pixi-spine
+
+[pixi-spine](https://github.com/pixijs/pixi-spine) is optional, however it is **REQUIRED** by typescript definitions. 
+
+Two ways:
+
+1. `<///reference types="pixi-spine.d.ts"/>`
+2. Use `pixi-spine.d.ts` file from `stubs` folder.
+
+In any case, put both `pixi.js` and `pixi-spine.js` before you include heaven in your build.
+
 ### How to use
 
-Just add ".js" file in your build and start using
+Just add `pixi-heaven.js` file in your build. 
 
 ```js
 var sprite = new PIXI.heaven.Sprite();

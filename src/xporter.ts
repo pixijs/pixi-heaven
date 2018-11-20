@@ -1,2 +1,4 @@
 ///<reference types="pixi.js"/>
-(PIXI as any).heaven = pixi_heaven;
+namespace pixi_heaven {
+    (PIXI as any).heaven = pixi_heaven;
+}

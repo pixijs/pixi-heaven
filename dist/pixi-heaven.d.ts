@@ -1,6 +1,8 @@
 /// <reference types="pixi.js" />
 /// <reference types="webgl-ext" />
 declare module PIXI.heaven {
+}
+declare module PIXI.heaven {
     interface IFrameObject {
         texture: PIXI.Texture;
         time: number;
@@ -562,6 +564,8 @@ declare module PIXI.heaven.utils {
     function isPow2(v: number): boolean;
     function nextPow2(v: number): number;
     function log2(v: number): number;
+}
+declare module PIXI.heaven {
 }
 declare module PIXI.heaven.spine {
     class Spine extends PIXI.spine.Spine {

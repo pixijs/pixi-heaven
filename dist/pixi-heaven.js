@@ -84,7 +84,18 @@ var pixi_heaven;
         utils.log2 = log2;
     })(utils = pixi_heaven.utils || (pixi_heaven.utils = {}));
 })(pixi_heaven || (pixi_heaven = {}));
-PIXI.heaven = pixi_heaven;
+var pixi_heaven;
+(function (pixi_heaven) {
+    PIXI.heaven = pixi_heaven;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
+    if (!PIXI.spine) {
+        PIXI.spine = {
+            Spine: function () { }
+        };
+    }
+})(pixi_heaven || (pixi_heaven = {}));
 var pixi_heaven;
 (function (pixi_heaven) {
     var AnimationState = (function () {
@@ -414,7 +425,7 @@ var pixi_heaven;
                     src += '\nelse ';
                 }
                 if (i < maxTextures - 1) {
-                    src += "if(textureId == " + i + ".0)";
+                    src += "if(textureId < " + i + ".5)";
                 }
                 src += '\n{';
                 src += "\n\ttexColor = texture2D(uSamplers[" + i + "], texCoord);";
