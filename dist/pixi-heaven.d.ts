@@ -488,6 +488,15 @@ declare module PIXI.heaven {
     }
 }
 declare module PIXI.heaven {
+    class BitmapText extends PIXI.extras.BitmapText {
+        constructor(text: string, style?: PIXI.extras.BitmapTextStyle);
+        color: ColorTransform;
+        tint: number;
+        updateTransform(): void;
+        addChild(child: any, ...additionalChildren: PIXI.DisplayObject[]): any;
+    }
+}
+declare module PIXI.heaven {
     class ColorTransform {
         dark: Float32Array;
         light: Float32Array;

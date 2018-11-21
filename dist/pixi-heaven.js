@@ -2390,6 +2390,60 @@ var pixi_heaven;
 })(pixi_heaven || (pixi_heaven = {}));
 var pixi_heaven;
 (function (pixi_heaven) {
+    var BitmapText = (function (_super) {
+        __extends(BitmapText, _super);
+        function BitmapText(text, style) {
+            var _this = _super.call(this, text, style) || this;
+            if (!_this.color) {
+                _this.color = new pixi_heaven.ColorTransform();
+            }
+            return _this;
+        }
+        Object.defineProperty(BitmapText.prototype, "tint", {
+            get: function () {
+                return this.color ? this.color.tintBGR : 0xffffff;
+            },
+            set: function (value) {
+                this.color && (this.color.tintBGR = value);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        BitmapText.prototype.updateTransform = function () {
+            this._boundsID++;
+            this.transform.updateTransform(this.parent.transform);
+            this.worldAlpha = this.alpha * this.parent.worldAlpha;
+            if (this.color) {
+                this.color.alpha = this.worldAlpha;
+                this.color.updateTransform();
+            }
+            for (var i = 0, j = this.children.length; i < j; ++i) {
+                var child = this.children[i];
+                if (child.visible) {
+                    child.updateTransform();
+                }
+            }
+        };
+        BitmapText.prototype.addChild = function (child) {
+            var additionalChildren = [];
+            for (var _i = 1; _i < arguments.length; _i++) {
+                additionalChildren[_i - 1] = arguments[_i];
+            }
+            if (!child.color && child.vertexData) {
+                if (!this.color) {
+                    this.color = new pixi_heaven.ColorTransform();
+                }
+                child.color = this.color;
+                child.pluginName = 'spriteHeaven';
+            }
+            return _super.prototype.addChild.apply(this, [child].concat(additionalChildren));
+        };
+        return BitmapText;
+    }(PIXI.extras.BitmapText));
+    pixi_heaven.BitmapText = BitmapText;
+})(pixi_heaven || (pixi_heaven = {}));
+var pixi_heaven;
+(function (pixi_heaven) {
     var whiteRgba = [1.0, 1.0, 1.0, 1.0];
     var blackRgba = [0.0, 0.0, 0.0, 1.0];
     var ColorTransform = (function () {
@@ -2931,7 +2985,7 @@ var pixi_heaven;
                 if (uvs) {
                     index = oldIndex + 2;
                     for (var i = 0; i < n; i += 2) {
-                        uint32View[index] = (((uvs[i + 1] * 65535) & 0xFFFF) << 16) | ((uvs[i] * 65535) & 0xFFFF);
+                        uint32View[index] = ((Math.round(uvs[i + 1] * 65535) & 0xFFFF) << 16) | (Math.round(uvs[i] * 65535) & 0xFFFF);
                         index += stride;
                     }
                 }
