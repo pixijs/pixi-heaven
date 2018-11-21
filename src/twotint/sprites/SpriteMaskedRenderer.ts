@@ -128,7 +128,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 			if (uvs) {
 				index = oldIndex + 2;
 				for (let i = 0; i < n; i += 2) {
-					uint32View[index] = (((uvs[i + 1] * 65535) & 0xFFFF) << 16) | ((uvs[i] * 65535) & 0xFFFF);
+					uint32View[index] = ((Math.round(uvs[i + 1] * 65535) & 0xFFFF) << 16) | (Math.round(uvs[i] * 65535) & 0xFFFF);
 					index += stride;
 				}
 			} else {
@@ -189,11 +189,6 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 			let posIndex = 0;
 
 			for (i = 0; i < this.currentIndex; ++i) {
-				// upload the sprite elemetns...
-				// they have all ready been calculated so we just need to push them into the buffer.
-
-				// upload the sprite elemetns...
-				// they have all ready been calculated so we just need to push them into the buffer.
 				const sprite = sprites[i];
 
 				sprites[i] = null;
