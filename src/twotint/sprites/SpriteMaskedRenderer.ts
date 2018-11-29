@@ -1,6 +1,4 @@
 namespace pixi_heaven.webgl {
-	import MultiTextureSpriteRenderer = pixi_heaven.webgl.MultiTextureSpriteRenderer;
-
 	import BaseTexture = PIXI.BaseTexture;
 	import GLBuffer = PIXI.glCore.GLBuffer;
 	import settings = PIXI.settings;
@@ -309,7 +307,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 				// set the blend mode..
 				this.renderer.state.setBlendMode(group.blend);
 
-				gl.drawElements(gl.TRIANGLES, group.size * 6, gl.UNSIGNED_SHORT, group.start * 6 * 2);
+				gl.drawElements(gl.TRIANGLES, group.size, gl.UNSIGNED_SHORT, group.start * 6 * 2);
 			}
 
 			// reset sprites for the next flush
