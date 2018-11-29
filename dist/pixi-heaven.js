@@ -3118,7 +3118,7 @@ var pixi_heaven;
                         }
                     }
                     this.renderer.state.setBlendMode(group.blend);
-                    gl.drawElements(gl.TRIANGLES, group.size, gl.UNSIGNED_SHORT, group.start * 6 * 2);
+                    gl.drawElements(gl.TRIANGLES, group.size, gl.UNSIGNED_SHORT, group.start * 2);
                 }
                 this.currentIndex = 0;
                 this.countVertex = 0;
