@@ -307,7 +307,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 				// set the blend mode..
 				this.renderer.state.setBlendMode(group.blend);
 
-				gl.drawElements(gl.TRIANGLES, group.size, gl.UNSIGNED_SHORT, group.start * 6 * 2);
+				gl.drawElements(gl.TRIANGLES, group.size, gl.UNSIGNED_SHORT, group.start * 2);
 			}
 
 			// reset sprites for the next flush
