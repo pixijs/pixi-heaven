@@ -2925,7 +2925,6 @@ var pixi_heaven;
 (function (pixi_heaven) {
     var webgl;
     (function (webgl) {
-        var MultiTextureSpriteRenderer = pixi_heaven.webgl.MultiTextureSpriteRenderer;
         var premultiplyBlendMode = PIXI.utils.premultiplyBlendMode;
         var tempArray = new Float32Array([0, 0, 0, 0]);
         var SpriteMaskedRenderer = (function (_super) {
@@ -3119,7 +3118,7 @@ var pixi_heaven;
                         }
                     }
                     this.renderer.state.setBlendMode(group.blend);
-                    gl.drawElements(gl.TRIANGLES, group.size * 6, gl.UNSIGNED_SHORT, group.start * 6 * 2);
+                    gl.drawElements(gl.TRIANGLES, group.size, gl.UNSIGNED_SHORT, group.start * 6 * 2);
                 }
                 this.currentIndex = 0;
                 this.countVertex = 0;
@@ -3131,7 +3130,7 @@ var pixi_heaven;
                 this.shader = webgl.generateMultiTextureShader(this.shaderVert, this.shaderFrag, gl, this.MAX_TEXTURES);
             };
             return SpriteMaskedRenderer;
-        }(MultiTextureSpriteRenderer));
+        }(webgl.MultiTextureSpriteRenderer));
         PIXI.WebGLRenderer.registerPlugin('spriteMasked', SpriteMaskedRenderer);
     })(webgl = pixi_heaven.webgl || (pixi_heaven.webgl = {}));
 })(pixi_heaven || (pixi_heaven = {}));
