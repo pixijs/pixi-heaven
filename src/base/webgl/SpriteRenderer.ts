@@ -292,17 +292,18 @@ namespace pixi_heaven.webgl {
 
 			let nextTexture: any;
 			let currentTexture: BaseTexture;
-			let currentUniforms: any = null;
 			let groupCount = 1;
 			let textureCount = 0;
 			let currentGroup = groups[0];
 			let blendMode = premultiplyBlendMode[
 				(sprites[0] as any)._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
+			let currentUniforms: any = this.getUniforms(sprites[0]);
 			let hasMesh = false;
 
 			currentGroup.textureCount = 0;
 			currentGroup.start = 0;
 			currentGroup.blend = blendMode;
+			currentGroup.uniforms = currentUniforms;
 
 			TICK++;
 
@@ -334,10 +335,8 @@ namespace pixi_heaven.webgl {
 					TICK++;
 				}
 
-				const uniforms = this.getUniforms(sprite);
+				const uniforms = i == 0 ? currentUniforms : this.getUniforms(sprite);
 				if (currentUniforms !== uniforms) {
-					currentUniforms = uniforms;
-
 					currentTexture = null;
 					textureCount = MAX_TEXTURES;
 					TICK++;
@@ -363,6 +362,7 @@ namespace pixi_heaven.webgl {
 						nextTexture._virtalBoundId = textureCount;
 
 						currentGroup.textures[currentGroup.textureCount++] = nextTexture;
+						currentGroup.uniforms = uniforms;
 						textureCount++;
 					}
 				}
@@ -398,6 +398,7 @@ namespace pixi_heaven.webgl {
 				this.indexBuffer.bind();
 			}
 
+			currentUniforms = null;
 			// render the groups..
 			for (i = 0; i < groupCount; i++) {
 				const group = groups[i];

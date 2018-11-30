@@ -31,7 +31,11 @@ module pixi_heaven {
 
 		onContextChange = (gl: WebGLRenderingContext) => {
 			this.gl = gl;
-			this.renderer.textureManager.updateTexture = this.updateTexture;
+
+			if (settings.TEXTURE_MANAGER) {
+				this.renderer.textureManager.updateTexture = this.updateTexture;
+				this.renderer.textureManager.destroyTexture = this.destroyTexture;
+			}
 
 			this.extensions = {
                 depthTexture: gl.getExtension('WEBKIT_WEBGL_depth_texture'),
@@ -43,9 +47,9 @@ module pixi_heaven {
 		//TODO: make boundTextures faster?
 
 		updateTexture = (texture_: PIXI.BaseTexture | PIXI.Texture, location?: number) => {
-			const tm = this.renderer.textureManager;
+			const renderer = this.renderer;
+			const tm = renderer.textureManager;
 			const gl = this.gl;
-			const anyThis = this as any;
 
 			const texture: any = (texture_ as any).baseTexture || texture_;
 			const isRenderTexture = !!texture._glRenderTargets;
@@ -91,6 +95,11 @@ module pixi_heaven {
 					renderTarget.resize(texture.width, texture.height);
 					texture._glRenderTargets[this.renderer.CONTEXT_UID] = renderTarget;
 					glTexture = renderTarget.texture;
+
+					if (!renderer._activeRenderTarget.root)
+					{
+						renderer._activeRenderTarget.frameBuffer.bind();
+					}
 				}
 				else {
 					glTexture = new PIXI.glCore.GLTexture(this.gl, null, null, null, null);
@@ -100,8 +109,17 @@ module pixi_heaven {
 
 				texture.on('update', tm.updateTexture, tm);
 				texture.on('dispose', tm.destroyTexture, tm);
-			} else if (isRenderTexture) {
-				texture._glRenderTargets[this.renderer.CONTEXT_UID].resize(texture.width, texture.height);
+			} else {
+				glTexture.bind();
+
+				if (isRenderTexture) {
+					texture._glRenderTargets[this.renderer.CONTEXT_UID].resize(texture.width, texture.height);
+
+					if (!renderer._activeRenderTarget.root)
+					{
+						renderer._activeRenderTarget.frameBuffer.bind();
+					}
+				}
 			}
 
 			glTexture.premultiplyAlpha = texture.premultipliedAlpha;
@@ -109,7 +127,7 @@ module pixi_heaven {
 			if (!isRenderTexture) {
                 if (!texture.resource) {
                     glTexture.upload(texture.source);
-                } else if (!texture.resource.onTextureUpload(this.renderer, texture, glTexture)) {
+                } else if (!texture.resource.onTextureUpload(renderer, texture, glTexture)) {
                     glTexture.uploadData(null, texture.realWidth, texture.realHeight);
                 }
             }
@@ -155,6 +173,54 @@ module pixi_heaven {
 
 		destroy() {
 			this.renderer.off('context', this.onContextChange);
+		}
+
+		destroyTexture = (texture_: PIXI.BaseTexture | PIXI.Texture, skipRemove?: boolean) =>
+		{
+			let texture: any = (texture_ as any).baseTexture || texture_;
+
+			if (!texture.hasLoaded)
+			{
+				return;
+			}
+
+			const renderer = this.renderer;
+			const tm = renderer.textureManager as any;
+
+			const uid = renderer.CONTEXT_UID;
+			const glTextures = texture._glTextures;
+			const glRenderTargets = texture._glRenderTargets;
+
+			if (glTextures[uid])
+			{
+				renderer.unbindTexture(texture);
+
+				glTextures[uid].destroy();
+				texture.off('update', tm.updateTexture, tm);
+				texture.off('dispose', tm.destroyTexture, tm);
+
+				delete glTextures[uid];
+
+				if (!skipRemove)
+				{
+					const i = tm._managedTextures.indexOf(texture);
+
+					if (i !== -1)
+					{
+						PIXI.utils.removeItems(tm._managedTextures, i, 1);
+					}
+				}
+			}
+
+			if (glRenderTargets && glRenderTargets[uid])
+			{
+				if (renderer._activeRenderTarget === glRenderTargets[uid]) {
+					renderer.bindRenderTarget((renderer as any).rootRenderTarget);
+				}
+
+				glRenderTargets[uid].destroy();
+				delete glRenderTargets[uid];
+			}
 		}
 	}
 

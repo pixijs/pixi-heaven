@@ -170,17 +170,18 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 
 			let nextTexture, nextMaskTexture: any;
 			let currentTexture: BaseTexture, currentMaskTexture: BaseTexture = null;
-			let currentUniforms: any = null;
 			let groupCount = 1;
 			let textureCount = 0;
 			let currentGroup = groups[0];
 			let blendMode = premultiplyBlendMode[
 				(sprites[0] as any)._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
+			let currentUniforms: any = this.getUniforms(sprites[0]);
 			let hasMesh = false;
 
 			currentGroup.textureCount = 0;
 			currentGroup.start = 0;
 			currentGroup.blend = blendMode;
+			currentGroup.uniforms = currentUniforms;
 
 			let i;
 			let posVertex = 0;
@@ -201,7 +202,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 					if (currentMaskTexture === null) {
 						currentMaskTexture = nextMaskTexture;
 						currentGroup.textures[1] = nextMaskTexture;
-					} else {
+					} else if (currentMaskTexture !== nextMaskTexture) {
 						currentTexture = null;
 						currentMaskTexture = null;
 						textureCount = MAX_TEXTURES;
@@ -220,10 +221,8 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 					textureCount = MAX_TEXTURES;
 				}
 
-				const uniforms = this.getUniforms(sprite);
+				const uniforms = i == 0 ? currentUniforms : this.getUniforms(sprite);
 				if (currentUniforms !== uniforms) {
-					currentUniforms = uniforms;
-
 					currentTexture = null;
 					currentMaskTexture = null;
 					textureCount = MAX_TEXTURES;
@@ -237,13 +236,12 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 
 						textureCount = 0;
 
-						currentGroup.size = i - currentGroup.start;
+						currentGroup.size = posIndex - currentGroup.start;
 
 						currentGroup = groups[groupCount++];
 						currentGroup.textureCount = 0;
 						currentGroup.blend = blendMode;
-						currentGroup.start = i;
-						currentGroup.uniforms = currentUniforms;
+						currentGroup.start = posIndex;
 					}
 
 					//nextTexture._enabled = TICK;
@@ -252,6 +250,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 					currentGroup.textureCount = MAX_TEXTURES;
 					currentGroup.textures[0] = nextTexture;
 					currentGroup.textures[1] = nextMaskTexture || PIXI.Texture.WHITE.baseTexture;
+					currentGroup.uniforms = uniforms;
 					textureCount = MAX_TEXTURES;
 				}
 
@@ -278,11 +277,15 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 
 			const curVertexCount = this.vertexCount;
 			const isNewBuffer = this.checkVaoMax();
-			const ib = hasMesh ? this.indexBuffers[curVertexCount] : this.indexBuffer;
 
 			this.vertexBuffers[curVertexCount].upload(buffer.vertices, 0, !isNewBuffer);
-			ib.bind();
+			if (hasMesh) {
+				this.indexBuffers[curVertexCount].upload(bufferIndex, 0);
+			} else {
+				this.indexBuffer.bind();
+			}
 
+			currentUniforms = null;
 			// / render the groups..
 			for (i = 0; i < groupCount; i++) {
 				const group = groups[i];
@@ -307,7 +310,7 @@ gl_FragColor = fragColor * (vTextureId * (maskColor.r * clip) + 1.0 - vTextureId
 				// set the blend mode..
 				this.renderer.state.setBlendMode(group.blend);
 
-				gl.drawElements(gl.TRIANGLES, group.size, gl.UNSIGNED_SHORT, group.start * 2);
+				gl.drawElements(gl.TRIANGLES, group.size, gl.UNSIGNED_SHORT, group.start *   2);
 			}
 
 			// reset sprites for the next flush
