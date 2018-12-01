@@ -30,7 +30,8 @@ var pixi_heaven;
 (function (pixi_heaven) {
     pixi_heaven.settings = {
         MESH_PLUGIN: 'meshHeaven',
-        SPINE_MESH_PLUGIN: 'spriteHeaven'
+        SPINE_MESH_PLUGIN: 'spriteHeaven',
+        TEXTURE_MANAGER: true
     };
 })(pixi_heaven || (pixi_heaven = {}));
 var pixi_heaven;
@@ -613,15 +614,16 @@ var pixi_heaven;
                 var uint32View = buffer.uint32View;
                 var nextTexture;
                 var currentTexture;
-                var currentUniforms = null;
                 var groupCount = 1;
                 var textureCount = 0;
                 var currentGroup = groups[0];
                 var blendMode = premultiplyBlendMode[sprites[0]._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
+                var currentUniforms = this.getUniforms(sprites[0]);
                 var hasMesh = false;
                 currentGroup.textureCount = 0;
                 currentGroup.start = 0;
                 currentGroup.blend = blendMode;
+                currentGroup.uniforms = currentUniforms;
                 TICK++;
                 var i;
                 var posVertex = 0;
@@ -637,9 +639,8 @@ var pixi_heaven;
                         textureCount = MAX_TEXTURES;
                         TICK++;
                     }
-                    var uniforms = this.getUniforms(sprite);
+                    var uniforms = i == 0 ? currentUniforms : this.getUniforms(sprite);
                     if (currentUniforms !== uniforms) {
-                        currentUniforms = uniforms;
                         currentTexture = null;
                         textureCount = MAX_TEXTURES;
                         TICK++;
@@ -660,6 +661,7 @@ var pixi_heaven;
                             nextTexture._enabled = TICK;
                             nextTexture._virtalBoundId = textureCount;
                             currentGroup.textures[currentGroup.textureCount++] = nextTexture;
+                            currentGroup.uniforms = uniforms;
                             textureCount++;
                         }
                     }
@@ -691,6 +693,7 @@ var pixi_heaven;
                 else {
                     this.indexBuffer.bind();
                 }
+                currentUniforms = null;
                 for (i = 0; i < groupCount; i++) {
                     var group = groups[i];
                     var groupTextureCount = group.textureCount;
@@ -768,16 +771,19 @@ var pixi_heaven;
             this.extensions = null;
             this.onContextChange = function (gl) {
                 _this.gl = gl;
-                _this.renderer.textureManager.updateTexture = _this.updateTexture;
+                if (pixi_heaven.settings.TEXTURE_MANAGER) {
+                    _this.renderer.textureManager.updateTexture = _this.updateTexture;
+                    _this.renderer.textureManager.destroyTexture = _this.destroyTexture;
+                }
                 _this.extensions = {
                     depthTexture: gl.getExtension('WEBKIT_WEBGL_depth_texture'),
                     floatTexture: gl.getExtension('OES_texture_float'),
                 };
             };
             this.updateTexture = function (texture_, location) {
-                var tm = _this.renderer.textureManager;
+                var renderer = _this.renderer;
+                var tm = renderer.textureManager;
                 var gl = _this.gl;
-                var anyThis = _this;
                 var texture = texture_.baseTexture || texture_;
                 var isRenderTexture = !!texture._glRenderTargets;
                 if (!texture.hasLoaded) {
@@ -802,6 +808,9 @@ var pixi_heaven;
                         renderTarget.resize(texture.width, texture.height);
                         texture._glRenderTargets[_this.renderer.CONTEXT_UID] = renderTarget;
                         glTexture = renderTarget.texture;
+                        if (!renderer._activeRenderTarget.root) {
+                            renderer._activeRenderTarget.frameBuffer.bind();
+                        }
                     }
                     else {
                         glTexture = new PIXI.glCore.GLTexture(_this.gl, null, null, null, null);
@@ -811,15 +820,21 @@ var pixi_heaven;
                     texture.on('update', tm.updateTexture, tm);
                     texture.on('dispose', tm.destroyTexture, tm);
                 }
-                else if (isRenderTexture) {
-                    texture._glRenderTargets[_this.renderer.CONTEXT_UID].resize(texture.width, texture.height);
+                else {
+                    glTexture.bind();
+                    if (isRenderTexture) {
+                        texture._glRenderTargets[_this.renderer.CONTEXT_UID].resize(texture.width, texture.height);
+                        if (!renderer._activeRenderTarget.root) {
+                            renderer._activeRenderTarget.frameBuffer.bind();
+                        }
+                    }
                 }
                 glTexture.premultiplyAlpha = texture.premultipliedAlpha;
                 if (!isRenderTexture) {
                     if (!texture.resource) {
                         glTexture.upload(texture.source);
                     }
-                    else if (!texture.resource.onTextureUpload(_this.renderer, texture, glTexture)) {
+                    else if (!texture.resource.onTextureUpload(renderer, texture, glTexture)) {
                         glTexture.uploadData(null, texture.realWidth, texture.realHeight);
                     }
                 }
@@ -828,6 +843,37 @@ var pixi_heaven;
                 }
                 glTexture._updateID = texture._updateID;
                 return glTexture;
+            };
+            this.destroyTexture = function (texture_, skipRemove) {
+                var texture = texture_.baseTexture || texture_;
+                if (!texture.hasLoaded) {
+                    return;
+                }
+                var renderer = _this.renderer;
+                var tm = renderer.textureManager;
+                var uid = renderer.CONTEXT_UID;
+                var glTextures = texture._glTextures;
+                var glRenderTargets = texture._glRenderTargets;
+                if (glTextures[uid]) {
+                    renderer.unbindTexture(texture);
+                    glTextures[uid].destroy();
+                    texture.off('update', tm.updateTexture, tm);
+                    texture.off('dispose', tm.destroyTexture, tm);
+                    delete glTextures[uid];
+                    if (!skipRemove) {
+                        var i = tm._managedTextures.indexOf(texture);
+                        if (i !== -1) {
+                            PIXI.utils.removeItems(tm._managedTextures, i, 1);
+                        }
+                    }
+                }
+                if (glRenderTargets && glRenderTargets[uid]) {
+                    if (renderer._activeRenderTarget === glRenderTargets[uid]) {
+                        renderer.bindRenderTarget(renderer.rootRenderTarget);
+                    }
+                    glRenderTargets[uid].destroy();
+                    delete glRenderTargets[uid];
+                }
             };
             this.renderer = renderer;
             renderer.on('context', this.onContextChange);
@@ -3015,15 +3061,16 @@ var pixi_heaven;
                 var uint32View = buffer.uint32View;
                 var nextTexture, nextMaskTexture;
                 var currentTexture, currentMaskTexture = null;
-                var currentUniforms = null;
                 var groupCount = 1;
                 var textureCount = 0;
                 var currentGroup = groups[0];
                 var blendMode = premultiplyBlendMode[sprites[0]._texture.baseTexture.premultipliedAlpha ? 1 : 0][sprites[0].blendMode];
+                var currentUniforms = this.getUniforms(sprites[0]);
                 var hasMesh = false;
                 currentGroup.textureCount = 0;
                 currentGroup.start = 0;
                 currentGroup.blend = blendMode;
+                currentGroup.uniforms = currentUniforms;
                 var i;
                 var posVertex = 0;
                 var posIndex = 0;
@@ -3039,7 +3086,7 @@ var pixi_heaven;
                             currentMaskTexture = nextMaskTexture;
                             currentGroup.textures[1] = nextMaskTexture;
                         }
-                        else {
+                        else if (currentMaskTexture !== nextMaskTexture) {
                             currentTexture = null;
                             currentMaskTexture = null;
                             textureCount = MAX_TEXTURES;
@@ -3052,9 +3099,8 @@ var pixi_heaven;
                         currentMaskTexture = null;
                         textureCount = MAX_TEXTURES;
                     }
-                    var uniforms = this.getUniforms(sprite);
+                    var uniforms = i == 0 ? currentUniforms : this.getUniforms(sprite);
                     if (currentUniforms !== uniforms) {
-                        currentUniforms = uniforms;
                         currentTexture = null;
                         currentMaskTexture = null;
                         textureCount = MAX_TEXTURES;
@@ -3064,17 +3110,17 @@ var pixi_heaven;
                         currentMaskTexture = nextMaskTexture;
                         if (textureCount === MAX_TEXTURES) {
                             textureCount = 0;
-                            currentGroup.size = i - currentGroup.start;
+                            currentGroup.size = posIndex - currentGroup.start;
                             currentGroup = groups[groupCount++];
                             currentGroup.textureCount = 0;
                             currentGroup.blend = blendMode;
-                            currentGroup.start = i;
-                            currentGroup.uniforms = currentUniforms;
+                            currentGroup.start = posIndex;
                         }
                         nextTexture._virtalBoundId = textureCount;
                         currentGroup.textureCount = MAX_TEXTURES;
                         currentGroup.textures[0] = nextTexture;
                         currentGroup.textures[1] = nextMaskTexture || PIXI.Texture.WHITE.baseTexture;
+                        currentGroup.uniforms = uniforms;
                         textureCount = MAX_TEXTURES;
                     }
                     this.fillVertices(float32View, uint32View, posVertex * this.vertSize, sprite, nextTexture._virtalBoundId);
@@ -3098,9 +3144,14 @@ var pixi_heaven;
                 currentGroup.size = posIndex - currentGroup.start;
                 var curVertexCount = this.vertexCount;
                 var isNewBuffer = this.checkVaoMax();
-                var ib = hasMesh ? this.indexBuffers[curVertexCount] : this.indexBuffer;
                 this.vertexBuffers[curVertexCount].upload(buffer.vertices, 0, !isNewBuffer);
-                ib.bind();
+                if (hasMesh) {
+                    this.indexBuffers[curVertexCount].upload(bufferIndex, 0);
+                }
+                else {
+                    this.indexBuffer.bind();
+                }
+                currentUniforms = null;
                 for (i = 0; i < groupCount; i++) {
                     var group = groups[i];
                     var groupTextureCount = 2;

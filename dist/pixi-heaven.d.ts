@@ -190,6 +190,7 @@ declare module PIXI.heaven {
         updateTexture: (texture_: PIXI.Texture | PIXI.BaseTexture, location?: number) => any;
         setStyle(texture: PIXI.BaseTexture, glTexture: PIXI.glCore.GLTexture): void;
         destroy(): void;
+        destroyTexture: (texture_: PIXI.Texture | PIXI.BaseTexture, skipRemove?: boolean) => void;
     }
 }
 declare module PIXI {
@@ -410,6 +411,7 @@ declare module PIXI.heaven {
     let settings: {
         MESH_PLUGIN: string;
         SPINE_MESH_PLUGIN: string;
+        TEXTURE_MANAGER: boolean;
     };
 }
 declare module PIXI.heaven {
