@@ -18,7 +18,7 @@
         ]
     },
     "include": [
-        "src/**/*"
+        "srcNew/**/*"
     ],
     "exclude": [
         "node_modules/**/*",

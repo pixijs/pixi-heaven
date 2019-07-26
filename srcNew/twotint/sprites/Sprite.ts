@@ -13,7 +13,7 @@ namespace pixi_heaven {
 
 		constructor(texture: PIXI.Texture) {
 			super(texture);
-			this.pluginName = 'spriteHeaven';
+			this.pluginName = 'batchHeaven';
 			if (this.texture.valid) this._onTextureUpdate();
 		}
 
