@@ -117,7 +117,7 @@ This plugin enables light-dark tint of spine 3.6.
 Light-dark tint works like in sprites.
 
 ```js
-spine = new PIXI.heaven.spine.Spine();
+spine = new PIXI.heaven.Spine();
 spine.color.setLight(0.5, 1.0, 0.5);
 spine.color.setDark(0.2, 0.2, 0.2);
 ```
