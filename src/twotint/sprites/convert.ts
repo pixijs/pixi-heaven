@@ -56,7 +56,7 @@ namespace pixi_heaven {
 		this._onTextureUpdate = Sprite.prototype._onTextureUpdate;
 		this.updateTransform = Sprite.prototype.updateTransform;
 		this.color = new ColorTransform();
-		this.pluginName = 'spriteHeaven';
+		this.pluginName = 'batchHeaven';
 		return this;
 	};
 

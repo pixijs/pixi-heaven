@@ -18,7 +18,7 @@ namespace pixi_heaven.spine {
 		}
 	}
 
-	export class SpineMesh extends mesh.Mesh {
+	export class SpineMesh extends SimpleMesh {
 		region: PIXI.spine.core.TextureRegion = null;
 		spine: Spine;
 
@@ -26,17 +26,16 @@ namespace pixi_heaven.spine {
 		            spine: Spine = null) {
 			super(texture, vertices, uvs, indices, drawMode);
 			this.spine = spine;
-			this.pluginName = settings.SPINE_MESH_PLUGIN;
 		}
 
-		_renderWebGL(renderer: PIXI.WebGLRenderer) {
-			if (this.maskSprite) {
-				this.spine.hasSpriteMask = true;
-			}
-			if (this.spine.hasSpriteMask) {
-				this.pluginName = 'spriteMasked';
-			}
-			super._renderWebGL(renderer);
+		_render(renderer: PIXI.Renderer) {
+			// if (this.maskSprite) {
+			// 	this.spine.hasSpriteMask = true;
+			// }
+			// if (this.spine.hasSpriteMask) {
+			// 	this.pluginName = 'spriteMasked';
+			// }
+			super._render(renderer);
 		}
 	}
 
@@ -49,14 +48,14 @@ namespace pixi_heaven.spine {
 			this.spine = spine;
 		}
 
-		_renderWebGL(renderer: PIXI.WebGLRenderer) {
+		_render(renderer: PIXI.Renderer) {
 			if (this.maskSprite) {
 				this.spine.hasSpriteMask = true;
 			}
 			if (this.spine.hasSpriteMask) {
 				this.pluginName = 'spriteMasked';
 			}
-			super._renderWebGL(renderer);
+			super._render(renderer);
 		}
 	}
 }

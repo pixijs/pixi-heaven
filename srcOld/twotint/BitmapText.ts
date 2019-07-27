@@ -1,6 +1,6 @@
 namespace pixi_heaven {
-	export class BitmapText extends PIXI.BitmapText {
-		constructor(text: string, style?: PIXI.BitmapTextStyle) {
+	export class BitmapText extends PIXI.extras.BitmapText {
+		constructor(text: string, style?: PIXI.extras.BitmapTextStyle) {
 			super(text, style);
 			if (!this.color) {
 				this.color = new ColorTransform();
@@ -43,7 +43,7 @@ namespace pixi_heaven {
 					this.color = new ColorTransform();
 				}
 				child.color = this.color;
-				child.pluginName = 'batchHeaven';
+				child.pluginName = 'spriteHeaven';
 			}
 			return super.addChild(child, ...additionalChildren);
 		}

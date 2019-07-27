@@ -1,6 +1,6 @@
 namespace pixi_heaven {
-	export class BitmapText extends PIXI.extras.BitmapText {
-		constructor(text: string, style?: PIXI.extras.BitmapTextStyle) {
+	export class BitmapText extends PIXI.BitmapText {
+		constructor(text: string, style?: any) {
 			super(text, style);
 			if (!this.color) {
 				this.color = new ColorTransform();
@@ -18,11 +18,12 @@ namespace pixi_heaven {
 		}
 
 		updateTransform() {
-			this._boundsID++;
+			const thisAny = this as any;
+			thisAny._boundsID++;
 
 			this.transform.updateTransform(this.parent.transform);
 
-			this.worldAlpha = this.alpha * this.parent.worldAlpha;
+			thisAny.worldAlpha = this.alpha * this.parent.worldAlpha;
 			if (this.color) {
 				this.color.alpha = this.worldAlpha;
 				this.color.updateTransform();
@@ -43,7 +44,7 @@ namespace pixi_heaven {
 					this.color = new ColorTransform();
 				}
 				child.color = this.color;
-				child.pluginName = 'spriteHeaven';
+				child.pluginName = 'batchHeaven';
 			}
 			return super.addChild(child, ...additionalChildren);
 		}

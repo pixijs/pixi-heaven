@@ -3,17 +3,18 @@ namespace pixi_heaven {
 
 	const tempMat = new PIXI.Matrix();
 
+	const defIndices = new Uint16Array([0, 1, 2, 0, 2, 3]);
+
 	export class Sprite extends PIXI.Sprite implements ITextureAnimationTarget {
 		color = new ColorTransform();
 		maskSprite: PIXI.Sprite = null;
-		maskVertexData: Float32Array = null;
 		uvs: Float32Array = null;
-		indices: Uint16Array = null;
+		indices: Uint16Array = defIndices;
 		animState: AnimationState = null;
 
 		constructor(texture: PIXI.Texture) {
 			super(texture);
-			this.pluginName = 'spriteHeaven';
+			this.pluginName = 'batchHeaven';
 			if (this.texture.valid) this._onTextureUpdate();
 		}
 
@@ -35,12 +36,16 @@ namespace pixi_heaven {
 		}
 
 		updateTransform() {
-			this._boundsID++;
+			if (this.sortableChildren && this.sortDirty) {
+				this.sortChildren();
+			}
+
+			(this as any)._boundsID++;
 
 			this.transform.updateTransform(this.parent.transform);
 
 			// TODO: check render flags, how to process stuff here
-			this.worldAlpha = this.alpha * this.parent.worldAlpha;
+			(this as any).worldAlpha = this.alpha * this.parent.worldAlpha;
 			if (this.color) {
 				this.color.alpha = this.worldAlpha;
 				this.color.updateTransform();
@@ -56,54 +61,63 @@ namespace pixi_heaven {
 		}
 
 		_onTextureUpdate() {
-			this._textureID = -1;
-			this._textureTrimmedID = -1;
-			this.cachedTint = 0xFFFFFF;
+			const thisAny = this as any;
+			thisAny._textureID = -1;
+			thisAny._textureTrimmedID = -1;
+
+			const texture = thisAny._texture;
+			if (texture.polygon) {
+				this.uvs = texture.polygon.uvs;
+				this.indices = texture.polygon.indices;
+			} else {
+				this.uvs = texture._uvs.uvsFloat32;
+				this.indices = defIndices;
+			}
+
+			this._cachedTint = 0xFFFFFF;
 			if (this.color) {
-				this.color.pma = this._texture.baseTexture.premultipliedAlpha;
+				this.color.pma = thisAny._texture.baseTexture.premultipliedAlpha;
 			}
 
 			// so if _width is 0 then width was not set..
-			if (this._width) {
-				this.scale.x = sign(this.scale.x) * this._width / this._texture.orig.width;
+			if (thisAny._width) {
+				this.scale.x = sign(this.scale.x) * thisAny._width / thisAny._texture.orig.width;
 			}
 
-			if (this._height) {
-				this.scale.y = sign(this.scale.y) * this._height / this._texture.orig.height;
+			if (thisAny._height) {
+				this.scale.y = sign(this.scale.y) * thisAny._height / thisAny._texture.orig.height;
 			}
 		}
 
-		_calculateBounds()
-		{
-			const polygon = (this._texture as any).polygon;
-			const trim = this._texture.trim;
-			const orig = this._texture.orig;
+		_calculateBounds() {
+			const thisAny = this as any;
+			const polygon = (thisAny as any).polygon;
+			const trim = thisAny.trim;
+			const orig = thisAny.orig;
 
 			// First lets check to see if the current texture has a trim..
-			if (!polygon && (!trim || (trim.width === orig.width && trim.height === orig.height)))
-			{
+			if (!polygon && (!trim || (trim.width === orig.width && trim.height === orig.height))) {
 				// no trim! lets use the usual calculations..
 				this.calculateVertices();
-				this._bounds.addQuad(this.vertexData as any);
-			}
-			else
-			{
+				this._bounds.addQuad(thisAny.vertexData as any);
+			} else {
 				// lets calculate a special trimmed bounds...
 				this.calculateTrimmedVertices();
-				this._bounds.addQuad(this.vertexTrimmedData as any);
+				this._bounds.addQuad(thisAny.vertexTrimmedData as any);
 			}
 		}
 
 		calculateVertices() {
+			const thisAny = this as any;
 			const transform = this.transform as any;
-			const texture = this._texture as any;
+			const texture = thisAny._texture as any;
 
-			if (this._transformID === transform._worldID && this._textureID === texture._updateID) {
+			if (thisAny._transformID === transform._worldID && thisAny._textureID === texture._updateID) {
 				return;
 			}
 
-			this._transformID = transform._worldID;
-			this._textureID = texture._updateID;
+			thisAny._transformID = transform._worldID;
+			thisAny._textureID = texture._updateID;
 
 			// set the vertex data
 
@@ -114,21 +128,18 @@ namespace pixi_heaven {
 			const d = wt.d;
 			const tx = wt.tx;
 			const ty = wt.ty;
-			const anchor = this._anchor as any;
+			const anchor = thisAny._anchor as any;
 			const orig = texture.orig;
 
 			if (texture.polygon) {
-				this.uvs = texture.polygon.uvs;
-				this.indices = texture.polygon.indices;
-
 				const vertices = texture.polygon.vertices;
 				const n = vertices.length;
 
-				if (this.vertexData.length !== n) {
-					this.vertexData = new Float32Array(n);
+				if (thisAny.vertexData.length !== n) {
+					thisAny.vertexData = new Float32Array(n);
 				}
 
-				const vertexData = this.vertexData;
+				const vertexData = thisAny.vertexData;
 
 				const dx = -(anchor._x * orig.width);
 				const dy = -(anchor._y * orig.height);
@@ -141,7 +152,7 @@ namespace pixi_heaven {
 					vertexData[i + 1] = x * b + y * d + ty;
 				}
 			} else {
-				const vertexData = this.vertexData;
+				const vertexData = thisAny.vertexData;
 				const trim = texture.trim;
 
 				let w0 = 0;
@@ -157,8 +168,7 @@ namespace pixi_heaven {
 
 					h1 = trim.y - (anchor._y * orig.height);
 					h0 = h1 + trim.height;
-				}
-				else {
+				} else {
 					w1 = -anchor._x * orig.width;
 					w0 = w1 + orig.width;
 

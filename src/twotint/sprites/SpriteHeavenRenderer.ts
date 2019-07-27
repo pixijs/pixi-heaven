@@ -1,8 +1,9 @@
 namespace pixi_heaven {
-	import MultiTextureSpriteRenderer = pixi_heaven.webgl.MultiTextureSpriteRenderer;
+	namespace pixi_projection {
+		import TYPES = PIXI.TYPES;
+		import premultiplyTint = PIXI.utils.premultiplyTint;
 
-	class SpriteHeavenRenderer extends MultiTextureSpriteRenderer {
-		shaderVert =
+		const shaderVert =
 			`precision highp float;
 attribute vec2 aVertexPosition;
 attribute vec2 aTextureCoord;
@@ -10,102 +11,128 @@ attribute vec4 aLight, aDark;
 attribute float aTextureId;
 
 uniform mat3 projectionMatrix;
+uniform mat3 translationMatrix;
+uniform vec4 tint;
 
 varying vec2 vTextureCoord;
 varying vec4 vLight, vDark;
 varying float vTextureId;
 
 void main(void){
-    gl_Position.xyw = projectionMatrix * vec3(aVertexPosition, 1.0);
-    gl_Position.z = 0.0;
-    
+    gl_Position = vec4((projectionMatrix * translationMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);
+
     vTextureCoord = aTextureCoord;
     vTextureId = aTextureId;
-    vLight = aLight;
-    vDark = aDark;
+    vLight = aLight * tint;
+    vDark = vec4(aDark.rgb * tint.rgb, aDark.a);
 }
 `;
-		shaderFrag = `
+		const shaderFrag = `
 varying vec2 vTextureCoord;
 varying vec4 vLight, vDark;
 varying float vTextureId;
 uniform sampler2D uSamplers[%count%];
 
 void main(void) {
-vec4 texColor;
-vec2 texCoord = vTextureCoord;
+vec4 color;
 float textureId = floor(vTextureId+0.5);
 %forloop%
-gl_FragColor.a = texColor.a * vLight.a;
-gl_FragColor.rgb = ((texColor.a - 1.0) * vDark.a + 1.0 - texColor.rgb) * vDark.rgb + texColor.rgb * vLight.rgb;
+gl_FragColor.a = color.a * vLight.a;
+gl_FragColor.rgb = ((color.a - 1.0) * vDark.a + 1.0 - color.rgb) * vDark.rgb + color.rgb * vLight.rgb;
 }`;
 
-		createVao(vertexBuffer: PIXI.glCore.GLBuffer) {
-			const attrs = this.shader.attributes;
-			this.vertSize = attrs.aTextureId ? 6 : 5;
-			this.vertByteSize = this.vertSize * 4;
+		export class DarkLightGeometry extends PIXI.Geometry
+		{
+			_buffer: PIXI.Buffer;
+			_indexBuffer : PIXI.Buffer;
 
+			constructor(_static = false)
+			{
+				super();
 
-			const gl = this.renderer.gl;
-			const vao = this.renderer.createVao()
-				.addIndex(this.indexBuffer)
-				.addAttribute(vertexBuffer, attrs.aVertexPosition, gl.FLOAT, false, this.vertByteSize, 0)
-				.addAttribute(vertexBuffer, attrs.aTextureCoord, gl.UNSIGNED_SHORT, true, this.vertByteSize, 2 * 4)
-				.addAttribute(vertexBuffer, attrs.aLight, gl.UNSIGNED_BYTE, true, this.vertByteSize, 3 * 4)
-				.addAttribute(vertexBuffer, attrs.aDark, gl.UNSIGNED_BYTE, true, this.vertByteSize, 4 * 4);
+				this._buffer = new PIXI.Buffer(null, _static, false);
 
-			if (attrs.aTextureId) {
-				vao.addAttribute(vertexBuffer, attrs.aTextureId, gl.FLOAT, false, this.vertByteSize, 5 * 4);
-			}
+				this._indexBuffer = new PIXI.Buffer(null, _static, true);
 
-			return vao;
-		}
-
-		fillVertices(float32View: Float32Array, uint32View: Uint32Array, index: number, sprite: any, textureId: number) {
-			//first, fill the coordinates!
-
-			const vertexData = sprite.vertexData;
-
-			const n = vertexData.length;
-
-			const lightRgba = sprite.color.lightRgba;
-			const darkRgba = sprite.color.darkRgba;
-			const stride = this.vertSize;
-			const oldIndex = index;
-
-			for (let i = 0; i < n; i += 2) {
-				float32View[index] = vertexData[i];
-				float32View[index + 1] = vertexData[i + 1];
-				uint32View[index + 3] = lightRgba;
-				uint32View[index + 4] = darkRgba;
-				index += stride;
-			}
-
-			const uvs = sprite.uvs;
-			if (uvs) {
-				index = oldIndex + 2;
-				for (let i = 0; i < n; i += 2) {
-					uint32View[index] = (((uvs[i + 1] * 65535) & 0xFFFF) << 16) | ((uvs[i] * 65535) & 0xFFFF);
-					index += stride;
-				}
-			} else {
-				const _uvs = sprite._texture._uvs.uvsUint32;
-				index = oldIndex + 2;
-				for (let i = 0; i < n; i += 2) {
-					uint32View[index] = _uvs[i >> 1];
-					index += stride;
-				}
-			}
-
-			if (stride === 6) {
-				index = oldIndex + 5;
-				for (let i = 0; i < n; i += 2) {
-					float32View[index] = textureId;
-					index += stride;
-				}
+				this.addAttribute('aVertexPosition', this._buffer, 2, false, TYPES.FLOAT)
+					.addAttribute('aTextureCoord', this._buffer, 2, false, TYPES.FLOAT)
+					.addAttribute('aLight', this._buffer, 4, true, TYPES.UNSIGNED_BYTE)
+					.addAttribute('aDark', this._buffer, 4, true, TYPES.UNSIGNED_BYTE)
+					.addAttribute('aTextureId', this._buffer, 1, true, TYPES.FLOAT)
+					.addIndex(this._indexBuffer);
 			}
 		}
+
+		export class DarkLightPluginFactory {
+			static create(options: any): any
+			{
+				const { vertex, fragment, vertexSize, geometryClass } = (Object as any).assign({
+					vertex: shaderVert,
+					fragment: shaderFrag,
+					geometryClass: DarkLightGeometry,
+					vertexSize: 7,
+				}, options);
+
+				return class BatchPlugin extends PIXI.AbstractBatchRenderer
+				{
+					constructor(renderer: PIXI.Renderer)
+					{
+						super(renderer);
+
+						this.shaderGenerator = new PIXI.BatchShaderGenerator(vertex, fragment);
+						this.geometryClass = geometryClass;
+						this.vertexSize = vertexSize;
+					}
+
+					vertexSize: number;
+
+					packInterleavedGeometry(element: any, attributeBuffer: PIXI.ViewableBuffer, indexBuffer: Uint16Array, aIndex: number, iIndex: number)
+					{
+						const {
+							uint32View,
+							float32View,
+						} = attributeBuffer;
+
+						let lightRgba = -1;
+						let darkRgba = 0;
+
+						if (element.color) {
+							lightRgba = element.color.lightRgba;
+							darkRgba = element.color.darkRgba;
+						} else {
+							const alpha = Math.min(element.worldAlpha, 1.0);
+							lightRgba = (alpha < 1.0
+								&& element._texture.baseTexture.premultiplyAlpha)
+								? premultiplyTint(element._tintRGB, alpha)
+								: element._tintRGB + (alpha * 255 << 24);
+						}
+
+						const p = aIndex / this.vertexSize;
+						const uvs = element.uvs;
+						const indices = element.indices;
+						const vertexData = element.vertexData;
+						const textureId = element._texture.baseTexture._id;
+
+						for (let i = 0; i < vertexData.length; i += 2)
+						{
+							float32View[aIndex++] = vertexData[i];
+							float32View[aIndex++] = vertexData[i + 1];
+							float32View[aIndex++] = uvs[i];
+							float32View[aIndex++] = uvs[i + 1];
+							uint32View[aIndex++] = lightRgba;
+							uint32View[aIndex++] = darkRgba;
+							float32View[aIndex++] = textureId;
+						}
+
+						for (let i = 0; i < indices.length; i++)
+						{
+							indexBuffer[iIndex++] = p + indices[i];
+						}
+					}
+				};
+			}
+		}
+
+		PIXI.Renderer.registerPlugin('batchHeaven', DarkLightPluginFactory.create({}));
 	}
-
-	PIXI.WebGLRenderer.registerPlugin('spriteHeaven', SpriteHeavenRenderer);
 }

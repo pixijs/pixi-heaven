@@ -193,7 +193,7 @@ namespace pixi_heaven {
 			const textures = [];
 
 			for (let i = 0; i < frames.length; ++i) {
-				textures.push(PIXI.Texture.fromFrame(frames[i]));
+				textures.push(PIXI.Texture.from(frames[i]));
 			}
 
 			return new AnimationState(textures);
@@ -210,7 +210,7 @@ namespace pixi_heaven {
 			const textures = [];
 
 			for (let i = 0; i < images.length; ++i) {
-				textures.push(PIXI.Texture.fromImage(images[i]));
+				textures.push(PIXI.Texture.from(images[i]));
 			}
 
 			return new AnimationState(textures);

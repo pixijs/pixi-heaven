@@ -9,15 +9,14 @@ namespace pixi_heaven {
 
 		let frameIndex = initialFrameIndex;
 		const maxFrames = PIXI.Spritesheet.BATCH_SIZE;
+		const sourceScale = this.baseTexture.sourceScale;
 
-		while (frameIndex - initialFrameIndex < maxFrames && frameIndex < this._frameKeys.length)
-		{
+		while (frameIndex - initialFrameIndex < maxFrames && frameIndex < this._frameKeys.length) {
 			const i = this._frameKeys[frameIndex];
 			const data = this._frames[i];
 			const rect = data.frame;
 
-			if (rect)
-			{
+			if (rect) {
 				let frame = null;
 				let trim = null;
 				const sourceSize = data.trimmed !== false && data.sourceSize
@@ -26,37 +25,34 @@ namespace pixi_heaven {
 				const orig = new PIXI.Rectangle(
 					0,
 					0,
-					Math.floor(sourceSize.w) / this.resolution,
-					Math.floor(sourceSize.h) / this.resolution
+					Math.floor(sourceSize.w * sourceScale) / this.resolution,
+					Math.floor(sourceSize.h * sourceScale) / this.resolution
 				);
 
-				if (data.rotated)
-				{
+				if (data.rotated) {
 					frame = new PIXI.Rectangle(
-						Math.floor(rect.x) / this.resolution,
-						Math.floor(rect.y) / this.resolution,
-						Math.floor(rect.h) / this.resolution,
-						Math.floor(rect.w) / this.resolution
+						Math.floor(rect.x * sourceScale) / this.resolution,
+						Math.floor(rect.y * sourceScale) / this.resolution,
+						Math.floor(rect.h * sourceScale) / this.resolution,
+						Math.floor(rect.w * sourceScale) / this.resolution
 					);
 				}
-				else
-				{
+				else {
 					frame = new PIXI.Rectangle(
-						Math.floor(rect.x) / this.resolution,
-						Math.floor(rect.y) / this.resolution,
-						Math.floor(rect.w) / this.resolution,
-						Math.floor(rect.h) / this.resolution
+						Math.floor(rect.x * sourceScale) / this.resolution,
+						Math.floor(rect.y * sourceScale) / this.resolution,
+						Math.floor(rect.w * sourceScale) / this.resolution,
+						Math.floor(rect.h * sourceScale) / this.resolution
 					);
 				}
 
 				//  Check to see if the sprite is trimmed
-				if (data.trimmed !== false && data.spriteSourceSize)
-				{
+				if (data.trimmed !== false && data.spriteSourceSize) {
 					trim = new PIXI.Rectangle(
-						Math.floor(data.spriteSourceSize.x) / this.resolution,
-						Math.floor(data.spriteSourceSize.y) / this.resolution,
-						Math.floor(rect.w) / this.resolution,
-						Math.floor(rect.h) / this.resolution
+						Math.floor(data.spriteSourceSize.x * sourceScale) / this.resolution,
+						Math.floor(data.spriteSourceSize.y * sourceScale) / this.resolution,
+						Math.floor(rect.w * sourceScale) / this.resolution,
+						Math.floor(rect.h * sourceScale) / this.resolution
 					);
 				}
 
@@ -65,16 +61,15 @@ namespace pixi_heaven {
 					frame,
 					orig,
 					trim,
-					data.rotated ? 2 : 0,
-					data.anchor
+					data.rotated ? 2 : 0
 				);
 
 				if (data.vertices) {
 					const vertices = new Float32Array(data.vertices.length * 2);
 
 					for (let i = 0; i < data.vertices.length; i++) {
-						vertices[i * 2] = Math.floor(data.vertices[i][0] ) / this.resolution;
-						vertices[i * 2 + 1] = Math.floor(data.vertices[i][1] ) / this.resolution;
+						vertices[i * 2] = Math.floor(data.vertices[i][0] * sourceScale) / this.resolution;
+						vertices[i * 2 + 1] = Math.floor(data.vertices[i][1] * sourceScale) / this.resolution;
 					}
 
 					const uvs = new Float32Array(data.verticesUV.length * 2);
@@ -94,7 +89,7 @@ namespace pixi_heaven {
 					(this.textures[i] as any).polygon = new TexturePolygon(vertices, uvs, indices);
 				}
 
-				// lets also add the frame to pixi's global cache for 'from' and 'fromLoader' functions
+				// lets also add the frame to pixi's global cache for fromFrame and fromImage functions
 				PIXI.Texture.addToCache(this.textures[i], i);
 			}
 

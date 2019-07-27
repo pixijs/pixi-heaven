@@ -35,10 +35,13 @@
   "devDependencies": {
     "del": "^2.2.0",
     "mkdirp": "^0.5.1",
-    "pixi.js": "~5.1.0",
-    "pixi-spine": "~2.0.2",
     "parallelshell": "^2.0.0",
+    "pixi-spine": "~2.0.2",
+    "pixi.js": "~5.1.0",
     "rimraf": "^2.5.3",
     "typescript": "^3.5.1"
+  },
+  "dependencies": {
+    "tmp": "^0.1.0"
   }
 }
