@@ -35,31 +35,6 @@ namespace pixi_heaven {
 			this.color && (this.color.tintBGR = value);
 		}
 
-		updateTransform() {
-			if (this.sortableChildren && this.sortDirty) {
-				this.sortChildren();
-			}
-
-			(this as any)._boundsID++;
-
-			this.transform.updateTransform(this.parent.transform);
-
-			// TODO: check render flags, how to process stuff here
-			(this as any).worldAlpha = this.alpha * this.parent.worldAlpha;
-			if (this.color) {
-				this.color.alpha = this.worldAlpha;
-				this.color.updateTransform();
-			}
-
-			for (let i = 0, j = this.children.length; i < j; ++i) {
-				const child = this.children[i];
-
-				if (child.visible) {
-					child.updateTransform();
-				}
-			}
-		}
-
 		_onTextureUpdate() {
 			const thisAny = this as any;
 			thisAny._textureID = -1;
@@ -87,6 +62,12 @@ namespace pixi_heaven {
 			if (thisAny._height) {
 				this.scale.y = sign(this.scale.y) * thisAny._height / thisAny._texture.orig.height;
 			}
+		}
+
+		_render(renderer: PIXI.Renderer) {
+			this.color.alpha = this.worldAlpha;
+			this.color.updateTransform();
+			super._render(renderer);
 		}
 
 		_calculateBounds() {

@@ -54,7 +54,9 @@ namespace pixi_heaven {
 			configurable: true
 		});
 		this._onTextureUpdate = Sprite.prototype._onTextureUpdate;
-		this.updateTransform = Sprite.prototype.updateTransform;
+		this._render = Sprite.prototype._render;
+		this._calculateBounds = Sprite.prototype._calculateBounds;
+		this.calculateVertices = Sprite.prototype.calculateVertices;
 		this.color = new ColorTransform();
 		this.pluginName = 'batchHeaven';
 		return this;

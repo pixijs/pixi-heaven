@@ -4,7 +4,7 @@ namespace pixi_heaven {
 
 	uniform mat3 projectionMatrix;
 	uniform mat3 translationMatrix;
-	uniform mat3 uTransform;
+	uniform mat3 uTextureMatrix;
 
 	varying vec2 vTextureCoord;
 
@@ -12,7 +12,7 @@ namespace pixi_heaven {
 	{
 		gl_Position = vec4((projectionMatrix * translationMatrix * vec3(aVertexPosition, 1.0)).xy, 0.0, 1.0);
 
-		vTextureCoord = (uTransform * vec3(aTextureCoord, 1.0)).xy;
+		vTextureCoord = (uTextureMatrix * vec3(aTextureCoord, 1.0)).xy;
 	}`;
 
 	const fragment = `varying vec2 vTextureCoord;
@@ -61,6 +61,11 @@ void main(void)
 				uColor: new Float32Array([1, 1, 1, 1]),
 			};
 
+			// Set defaults
+			options = (Object as any).assign({
+				pluginName: 'batchHeaven',
+			}, options);
+
 			let allowTrim = options.allowTrim;
 
 			if (!allowTrim) {
@@ -70,11 +75,6 @@ void main(void)
 					allowTrim = true;
 				}
 			}
-
-			// Set defaults
-			options = (Object as any).assign({
-				pluginName: 'batchHeaven',
-			}, options);
 
 			if (options.uniforms) {
 				(Object as any).assign(uniforms, options.uniforms);
@@ -160,8 +160,7 @@ void main(void)
 		 * MeshMaterial objects.
 		 */
 		update() {
-			const {color} = this;
-			color.updateTransform();
+			this.color.updateTransform();
 			if (this.uvMatrix.update()) {
 				this.uniforms.uTextureMatrix = this.uvMatrix.mapCoord;
 				if (this.allowTrim) {

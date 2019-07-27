@@ -33,7 +33,14 @@ namespace pixi_heaven {
 			// then render it
 			renderer.geometry.draw(this.drawMode, this.size, this.start, (this.geometry as any).instanceCount);
 		}
+
+		_renderToBatch(renderer: PIXI.Renderer)
+		{
+			this.color.updateTransform();
+			super._renderToBatch(renderer);
+		}
 	}
+
 
 	export class SimpleMesh extends Mesh {
 		constructor(texture: PIXI.Texture, vertices?: Float32Array, uvs?: Float32Array,

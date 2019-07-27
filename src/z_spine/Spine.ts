@@ -1,5 +1,5 @@
 ///<reference types="pixi-spine"/>
-namespace pixi_heaven.spine {
+namespace pixi_heaven {
 
 	export class Spine extends PIXI.spine.Spine {
 		hasSpriteMask: boolean = false;

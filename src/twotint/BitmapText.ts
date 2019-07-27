@@ -17,27 +17,6 @@ namespace pixi_heaven {
 			this.color && (this.color.tintBGR = value);
 		}
 
-		updateTransform() {
-			const thisAny = this as any;
-			thisAny._boundsID++;
-
-			this.transform.updateTransform(this.parent.transform);
-
-			thisAny.worldAlpha = this.alpha * this.parent.worldAlpha;
-			if (this.color) {
-				this.color.alpha = this.worldAlpha;
-				this.color.updateTransform();
-			}
-
-			for (let i = 0, j = this.children.length; i < j; ++i) {
-				const child = this.children[i];
-
-				if (child.visible) {
-					child.updateTransform();
-				}
-			}
-		}
-
 		addChild(child: any, ...additionalChildren: PIXI.DisplayObject[]): any {
 			if (!child.color && child.vertexData) {
 				if (!this.color) {
@@ -47,6 +26,11 @@ namespace pixi_heaven {
 				child.pluginName = 'batchHeaven';
 			}
 			return super.addChild(child, ...additionalChildren);
+		}
+
+		_render(renderer: PIXI.Renderer) {
+			this.color.alpha = this.worldAlpha;
+			this.color.updateTransform();
 		}
 	}
 }
