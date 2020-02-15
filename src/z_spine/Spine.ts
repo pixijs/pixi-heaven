@@ -29,13 +29,20 @@ namespace pixi_heaven {
 		}
 
 		_render(renderer: PIXI.Renderer) {
-			// if (this.maskSprite) {
-			// 	this.spine.hasSpriteMask = true;
-			// }
-			// if (this.spine.hasSpriteMask) {
-			// 	this.pluginName = 'spriteMasked';
-			// }
-			super._render(renderer);
+			// part of SimpleMesh
+			if (this.autoUpdate)
+			{
+				this.geometry.getBuffer('aVertexPosition').update();
+			}
+			if (this.maskSprite) {
+				this.spine.hasSpriteMask = true;
+			}
+			if (this.spine.hasSpriteMask) {
+				(this.material as any).pluginName = 'batchMasked';
+				this._renderToBatch(renderer);
+			} else {
+				super._renderDefault(renderer);
+			}
 		}
 	}
 
@@ -53,7 +60,7 @@ namespace pixi_heaven {
 				this.spine.hasSpriteMask = true;
 			}
 			if (this.spine.hasSpriteMask) {
-				this.pluginName = 'spriteMasked';
+				this.pluginName = 'batchMasked';
 			}
 			super._render(renderer);
 		}

@@ -131,8 +131,25 @@ new PIXI.heaven.AnimationState(frames).bind(sprite);
 sprite.animState.gotoAndStop(2);
 ```
 
-It still uses `PIXI.ticker.shared` if you dont specify `autoUpdate=false`. 
+It still uses `PIXI.Ticker.shared` if you dont specify `autoUpdate=false`. 
 It will be stopped and destroyed with the bound element.
+
+### How to mask sprites with sprites
+
+Plugin adds special renderer that has faster masks than just `sprite.mask`. It also works on heaven meshes.
+
+```js
+sprite = new PIXI.heaven.Sprite();
+sprite.maskSprite = sprite2; //set it
+sprite.pluginName = 'batchMasked'; //enable special plugin rendering
+sprite2.renderable = false; //turn off rendering
+```
+
+Batching works with spine, just enable maskSprite in any sprite or mesh of spine instance, 
+all `pluginName`'s will be adjusted automagically.
+
+Look at [Spine file](https://github.com/gameofbombs/pixi-heaven/blob/master/src/z_spine/Spine.ts) to see 
+how it actually works. 
 
 ## WebPack and angular
 

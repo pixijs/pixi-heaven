@@ -1,6 +1,8 @@
 namespace pixi_heaven {
 	export class Mesh extends PIXI.Mesh {
 		color: ColorTransform = null;
+		maskSprite: PIXI.Sprite = null;
+		useSpriteMask = false;
 
 		constructor(geometry: PIXI.Geometry, shader: MeshMaterial, state: PIXI.State, drawMode?: number) {
 			super(geometry, shader, state, drawMode);
@@ -34,6 +36,19 @@ namespace pixi_heaven {
 			renderer.geometry.draw(this.drawMode, this.size, this.start, (this.geometry as any).instanceCount);
 		}
 
+		_render(renderer: PIXI.Renderer) {
+			// part of SimpleMesh
+			if (this.maskSprite) {
+				this.useSpriteMask = true;
+			}
+			if (this.useSpriteMask) {
+				(this.material as any).pluginName = 'batchMasked';
+				this._renderToBatch(renderer);
+			} else {
+				super._renderDefault(renderer);
+			}
+		}
+
 		_renderToBatch(renderer: PIXI.Renderer)
 		{
 			this.color.updateTransform();
@@ -63,7 +78,7 @@ namespace pixi_heaven {
 			this.geometry.getBuffer('aVertexPosition').data = value;
 		}
 
-		protected _render(renderer: PIXI.Renderer) {
+		_render(renderer: PIXI.Renderer) {
 			if (this.autoUpdate) {
 				this.geometry.getBuffer('aVertexPosition').update();
 			}

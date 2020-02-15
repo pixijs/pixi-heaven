@@ -8,6 +8,7 @@ namespace pixi_heaven {
 	export class Sprite extends PIXI.Sprite implements ITextureAnimationTarget {
 		color = new ColorTransform();
 		maskSprite: PIXI.Sprite = null;
+		maskVertexData: Float32Array = null;
 		uvs: Float32Array = null;
 		indices: Uint16Array = defIndices;
 		animState: AnimationState = null;
@@ -172,6 +173,45 @@ namespace pixi_heaven {
 				// xy
 				vertexData[6] = (a * w1) + (c * h0) + tx;
 				vertexData[7] = (d * h0) + (b * w1) + ty;
+			}
+		}
+
+		calculateMaskVertices() {
+			//WE HAVE A MASK
+			const maskSprite = this.maskSprite;
+			const tex = maskSprite.texture;
+			const orig = tex.orig;
+			const anchor = maskSprite.anchor;
+
+			if (!tex.valid) {
+				return;
+			}
+			if (!tex.uvMatrix) {
+				// margin = 0.0, let it bleed a bit, shader code becomes easier
+				// assuming that atlas textures were made with 1-pixel padding
+				tex.uvMatrix = new (PIXI as any).TextureMatrix(tex, 0.0);
+			}
+			tex.uvMatrix.update();
+
+			//same operations as in SpriteMaskFilter
+			maskSprite.transform.worldTransform.copyTo(tempMat);
+			tempMat.invert();
+			tempMat.scale(1.0 / orig.width, 1.0 / orig.height);
+			tempMat.translate(anchor.x, anchor.y);
+			tempMat.prepend(tex.uvMatrix.mapCoord);
+
+			const vertexData = (this as any).vertexData;
+			const n = vertexData.length;
+
+			if (!this.maskVertexData || this.maskVertexData.length !== n) {
+				this.maskVertexData = new Float32Array(n);
+			}
+
+			const maskVertexData = this.maskVertexData;
+
+			for (let i = 0; i < n; i += 2) {
+				maskVertexData[i] = vertexData[i] * tempMat.a + vertexData[i + 1] * tempMat.c + tempMat.tx;
+				maskVertexData[i + 1] = vertexData[i] * tempMat.b + vertexData[i + 1] * tempMat.d + tempMat.ty;
 			}
 		}
 

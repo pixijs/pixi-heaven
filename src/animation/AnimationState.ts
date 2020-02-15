@@ -43,7 +43,7 @@ namespace pixi_heaven {
 
 			this.playing = false;
 			if (this._autoUpdate) {
-				PIXI.ticker.shared.remove(this.update, this);
+				PIXI.Ticker.shared.remove(this.update, this);
 			}
 		}
 
@@ -58,7 +58,7 @@ namespace pixi_heaven {
 
 			this.playing = true;
 			if (this._autoUpdate) {
-				PIXI.ticker.shared.add(this.update, this, PIXI.UPDATE_PRIORITY.HIGH);
+				PIXI.Ticker.shared.add(this.update, this, PIXI.UPDATE_PRIORITY.HIGH);
 			}
 		}
 

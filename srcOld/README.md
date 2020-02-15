@@ -2,6 +2,8 @@
 
 This is heaven for sprites. Want to color them better? Wanna use advanced colors? Its all here!
 
+Requires PixiJS v5.2
+
 [Examples](https://gameofbombs.github.io/examples-heaven/#/basics/basic.js) are in their own [repo](https://github.com/gameofbombs/examples-heaven/).  
 
 Done:

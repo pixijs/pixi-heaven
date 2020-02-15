@@ -17,8 +17,9 @@ namespace pixi_heaven {
 			this.color && (this.color.tintBGR = value);
 		}
 
-		addChild(child: any, ...additionalChildren: PIXI.DisplayObject[]): any {
-			if (!child.color && child.vertexData) {
+		addChild(...additionalChildren: PIXI.DisplayObject[]): any {
+			const child: Sprite = additionalChildren[0] as any;
+			if (!child.color && (child as any).vertexData) {
 				if (!this.color) {
 					this.color = new ColorTransform();
 				}
