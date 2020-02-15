@@ -168,7 +168,7 @@ Angular:
 import * as PIXI from "pixi.js";
 global.PIXI = PIXI;
 require("pixi-spine");
-require("pixi-projection");
+require("pixi-heaven");
 ```
 
 ## Building
