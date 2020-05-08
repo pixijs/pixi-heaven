@@ -2,7 +2,7 @@
 
 This is heaven for sprites. Want to color them better? Wanna use advanced colors? Its all here!
 
-For v4 please see [v4.x branch](https://github.com/pixijs/pixi-spine/tree/v4.x) and use npm version `0.1.21`
+For v4 please see [v4.x branch](https://github.com/pixijs/pixi-heaven/tree/v4.x) and use npm version `0.1.21`
 
 [Examples](https://pixijs.github.io/examples/#/plugin-heaven/invert.js)  
 
