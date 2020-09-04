@@ -57,8 +57,18 @@ namespace pixi_heaven {
 		this._render = Sprite.prototype._render;
 		this._calculateBounds = Sprite.prototype._calculateBounds;
 		this.calculateVertices = Sprite.prototype.calculateVertices;
+		this._onTextureUpdate = Sprite.prototype._onTextureUpdate;
+		this.calculateMaskVertices = Sprite.prototype.calculateMaskVertices;
+		this.destroy = Sprite.prototype.destroy;
 		this.color = new ColorTransform();
 		this.pluginName = 'batchHeaven';
+
+		if (this._texture.valid) {
+			this._onTextureUpdate();
+		} else {
+			this._texture.off('update', this._onTextureUpdate);
+			this._texture.on('update', this._onTextureUpdate, this);
+		}
 		return this;
 	};
 

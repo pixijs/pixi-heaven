@@ -77,7 +77,7 @@ namespace pixi_heaven {
 			const trim = thisAny.trim;
 			const orig = thisAny.orig;
 
-			// First lets check to see if the current texture has a trim..
+			// F irst lets check to see if the current texture has a trim..
 			if (!polygon && (!trim || (trim.width === orig.width && trim.height === orig.height))) {
 				// no trim! lets use the usual calculations..
 				this.calculateVertices();
