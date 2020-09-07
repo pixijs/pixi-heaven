@@ -3,7 +3,7 @@ var fs = require('fs');
 var glob = require('glob');
 var path = require('path');
 
-var sourcePath = path.resolve(__dirname, '../srcNew');
+var sourcePath = path.resolve(__dirname, '../src');
 var files = glob.sync(sourcePath + '/**/*.ts');
 
 var filesCompilation = '';
