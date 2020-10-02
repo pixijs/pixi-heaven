@@ -12,6 +12,8 @@ namespace pixi_heaven {
 		uvs: Float32Array = null;
 		indices: Uint16Array = defIndices;
 		animState: AnimationState = null;
+		// modified by renderer
+		blendAddUnity = false;
 
 		constructor(texture: PIXI.Texture) {
 			super(texture);

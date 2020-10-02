@@ -122,6 +122,15 @@ spine.color.setLight(0.5, 1.0, 0.5);
 spine.color.setDark(0.2, 0.2, 0.2);
 ```
 
+### batch ADD blending mode with NORMAL
+
+This feature comes from unity spine runtime - ADD can be emulated by NORMAL with zero tint alpha.
+It reduces number of batches and drawcalls.
+
+```js
+PIXI.heaven.settings.BLEND_ADD_UNITY = true;
+```
+
 ### Animation
 
 Thanks to @finscn, unlike pixiJS vanilla  `AnimatedSprite`, here animation is a component:

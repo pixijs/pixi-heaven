@@ -1,6 +1,8 @@
 namespace pixi_heaven.webgl {
 	import TYPES = PIXI.TYPES;
 	import premultiplyTint = PIXI.utils.premultiplyTint;
+	import premultiplyBlendMode = PIXI.utils.premultiplyBlendMode;
+	import BLEND_MODES = PIXI.BLEND_MODES;
 
 	const shaderVert =
 `precision highp float;
@@ -105,6 +107,10 @@ gl_FragColor.rgb = ((color.a - 1.0) * vDark.a + 1.0 - color.rgb) * vDark.rgb + c
 							: element._tintRGB + (alpha * 255 << 24);
 					}
 
+					if (settings.BLEND_ADD_UNITY && element.blendAddUnity) {
+						lightRgba = lightRgba & 0xffffff;
+					}
+
 					const p = aIndex / this.vertexSize;
 					const uvs = element.uvs;
 					const indices = element.indices;
@@ -126,6 +132,75 @@ gl_FragColor.rgb = ((color.a - 1.0) * vDark.a + 1.0 - color.rgb) * vDark.rgb + c
 					{
 						indexBuffer[iIndex++] = p + indices[i];
 					}
+				}
+
+				/**
+				 * I override this method because of special alpha case that can be batched and work with any masks
+				 * @param texArray
+				 * @param start
+				 * @param finish
+				 */
+				buildDrawCalls(texArray: PIXI.BatchTextureArray, start: number, finish: number): void
+				{
+					const thisAny = this as any;
+					const {
+						_bufferedElements: elements,
+						_attributeBuffer,
+						_indexBuffer,
+						vertexSize,
+					} = thisAny;
+					const drawCalls = PIXI.AbstractBatchRenderer._drawCallPool;
+
+					let dcIndex = thisAny._dcIndex;
+					let aIndex = thisAny._aIndex;
+					let iIndex = thisAny._iIndex;
+
+					let drawCall = drawCalls[dcIndex] as any;
+
+					drawCall.start = thisAny._iIndex;
+					drawCall.texArray = texArray;
+
+					for (let i = start; i < finish; ++i)
+					{
+						const sprite = elements[i];
+						const tex = sprite._texture.baseTexture;
+						let spriteBlendMode = premultiplyBlendMode[
+							tex.alphaMode ? 1 : 0][sprite.blendMode];
+
+						if (settings.BLEND_ADD_UNITY) {
+							sprite.blendAddUnity = (spriteBlendMode === BLEND_MODES.ADD && tex.alphaMode);
+							if (sprite.blendAddUnity) {
+								spriteBlendMode = BLEND_MODES.NORMAL;
+							}
+						}
+
+						elements[i] = null;
+
+						if (start < i && drawCall.blend !== spriteBlendMode)
+						{
+							drawCall.size = iIndex - drawCall.start;
+							start = i;
+							drawCall = drawCalls[++dcIndex];
+							drawCall.texArray = texArray;
+							drawCall.start = iIndex;
+						}
+
+						this.packInterleavedGeometry(sprite, _attributeBuffer, _indexBuffer, aIndex, iIndex);
+						aIndex += sprite.vertexData.length / 2 * vertexSize;
+						iIndex += sprite.indices.length;
+
+						drawCall.blend = spriteBlendMode;
+					}
+
+					if (start < finish)
+					{
+						drawCall.size = iIndex - drawCall.start;
+						++dcIndex;
+					}
+
+					thisAny._dcIndex = dcIndex;
+					thisAny._aIndex = aIndex;
+					thisAny._iIndex = iIndex;
 				}
 			};
 		}

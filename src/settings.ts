@@ -7,5 +7,6 @@ namespace pixi_heaven {
 
 	export let settings = {
 		MESH_CLAMP: CLAMP_OPTIONS.AUTO,
+		BLEND_ADD_UNITY: false,
 	}
 }
