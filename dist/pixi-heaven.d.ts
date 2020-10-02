@@ -54,6 +54,7 @@ declare module PIXI.heaven {
     }
     let settings: {
         MESH_CLAMP: CLAMP_OPTIONS;
+        BLEND_ADD_UNITY: boolean;
     };
 }
 declare module PIXI.heaven {
@@ -208,6 +209,7 @@ declare module PIXI.heaven {
         uvs: Float32Array;
         indices: Uint16Array;
         animState: AnimationState;
+        blendAddUnity: boolean;
         constructor(texture: PIXI.Texture);
         get _tintRGB(): number;
         set _tintRGB(value: number);
