@@ -146,8 +146,14 @@ void main(void)
 			}
 			shader.uniforms.translationMatrix = mesh.worldTransform.toArray(true);
 
-			shader.uniforms.uLight = mesh.color.light;
-			shader.uniforms.uDark = mesh.color.dark;
+			const light = shader.uniforms.uLight;
+			const dark = shader.uniforms.uDark;
+			const { color } = mesh;
+			PIXI.utils.premultiplyRgba(color.light, color.light[3], light, texture.baseTexture.premultipliedAlpha);
+			PIXI.utils.premultiplyRgba(color.dark, color.light[3], dark, texture.baseTexture.premultipliedAlpha);
+			dark[3] = shader.uniforms.uDark[3];
+			shader.uniforms.uLight = light;
+			shader.uniforms.uDark = dark;
 
 			const drawMode = mesh.drawMode === Mesh.DRAW_MODES.TRIANGLE_MESH ? gl.TRIANGLE_STRIP : gl.TRIANGLES;
 
