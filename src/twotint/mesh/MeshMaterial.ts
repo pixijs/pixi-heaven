@@ -166,12 +166,9 @@ void main(void)
 			if (this._colorId !== this.color._updateID) {
 				this._colorId = this.color._updateID;
 				const { color, uniforms } = this;
-				const light = uniforms.uLight;
-				const dark = uniforms.uDark;
-
-				PIXI.utils.premultiplyRgba(color.light, color.light[3], light, uniforms.uSampler.alphaMode);
-				PIXI.utils.premultiplyRgba(color.dark, color.light[3], dark, uniforms.uSampler.alphaMode);
-				dark[3] = color.dark[3];
+				PIXI.utils.premultiplyRgba(color.light, color.light[3], uniforms.uLight, color.dark[3] > 0.0);
+				PIXI.utils.premultiplyRgba(color.dark, color.light[3], uniforms.uDark, color.dark[3] > 0.0);
+				uniforms.uDark[3] = color.dark[3];
 			}
 
 			if (this.uvMatrix.update()) {
