@@ -571,9 +571,7 @@ var pixi_heaven;
                 shader.update();
             }
             renderer.batch.flush();
-            if (shader.program.uniformData.translationMatrix) {
-                shader.uniforms.translationMatrix = this.worldTransform.toArray(true);
-            }
+            shader.uniforms.translationMatrix = this.worldTransform.toArray(true);
             renderer.shader.bind(shader, false);
             renderer.state.set(this.state);
             renderer.geometry.bind(this.geometry, shader);
@@ -638,7 +636,8 @@ var pixi_heaven;
             var uniforms = {
                 uSampler: uSampler,
                 uTextureMatrix: PIXI.Matrix.IDENTITY,
-                uColor: new Float32Array([1, 1, 1, 1]),
+                uDark: new Float32Array([0, 0, 0, 1]),
+                uLight: new Float32Array([1, 1, 1, 1]),
             };
             options = Object.assign({
                 pluginName: 'batchHeaven',
@@ -661,8 +660,7 @@ var pixi_heaven;
             _this.batchable = options.program === undefined && !_this.allowTrim;
             _this.pluginName = options.pluginName;
             _this.color = options.color || new pixi_heaven.ColorTransform();
-            _this.uniforms.uDark = _this.color.dark;
-            _this.uniforms.uLight = _this.color.light;
+            _this._colorId = -1;
             return _this;
         }
         Object.defineProperty(MeshMaterial.prototype, "texture", {
@@ -701,6 +699,13 @@ var pixi_heaven;
         });
         MeshMaterial.prototype.update = function () {
             this.color.updateTransform();
+            if (this._colorId !== this.color._updateID) {
+                this._colorId = this.color._updateID;
+                var _a = this, color = _a.color, uniforms = _a.uniforms;
+                PIXI.utils.premultiplyRgba(color.light, color.light[3], uniforms.uLight, color.dark[3] > 0.0);
+                PIXI.utils.premultiplyRgba(color.dark, color.light[3], uniforms.uDark, color.dark[3] > 0.0);
+                uniforms.uDark[3] = color.dark[3];
+            }
             if (this.uvMatrix.update()) {
                 this.uniforms.uTextureMatrix = this.uvMatrix.mapCoord;
                 if (this.allowTrim) {

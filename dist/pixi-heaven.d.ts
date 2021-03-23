@@ -127,6 +127,7 @@ declare module PIXI.heaven {
         readonly allowTrim: boolean;
         pluginName: string;
         color: ColorTransform;
+        _colorId: number;
         constructor(uSampler: PIXI.Texture, options?: any);
         get texture(): any;
         set texture(value: any);
