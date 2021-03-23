@@ -19,9 +19,7 @@ namespace pixi_heaven {
 
 			renderer.batch.flush();
 
-			if ((shader as any).program.uniformData.translationMatrix) {
-				shader.uniforms.translationMatrix = this.worldTransform.toArray(true);
-			}
+			shader.uniforms.translationMatrix = this.worldTransform.toArray(true);
 
 			// bind and sync uniforms..
 			renderer.shader.bind(shader, false);

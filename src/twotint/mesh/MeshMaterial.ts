@@ -53,12 +53,14 @@ void main(void)
 		readonly allowTrim: boolean;
 		pluginName: string;
 		color: ColorTransform;
+		_colorId: number;
 
 		constructor(uSampler: PIXI.Texture, options?: any) {
 			const uniforms = {
 				uSampler,
 				uTextureMatrix: PIXI.Matrix.IDENTITY,
-				uColor: new Float32Array([1, 1, 1, 1]),
+				uDark: new Float32Array([0, 0, 0, 1]),
+				uLight: new Float32Array([1, 1, 1, 1]),
 			};
 
 			// Set defaults
@@ -108,8 +110,8 @@ void main(void)
 			this.pluginName = options.pluginName;
 
 			this.color = options.color || new ColorTransform();
-			this.uniforms.uDark = this.color.dark;
-			this.uniforms.uLight = this.color.light;
+
+			this._colorId = -1;
 		}
 
 		/**
@@ -161,6 +163,17 @@ void main(void)
 		 */
 		update() {
 			this.color.updateTransform();
+			if (this._colorId !== this.color._updateID) {
+				this._colorId = this.color._updateID;
+				const { color, uniforms } = this;
+				const light = uniforms.uLight;
+				const dark = uniforms.uDark;
+
+				PIXI.utils.premultiplyRgba(color.light, color.light[3], light, uniforms.uSampler.alphaMode);
+				PIXI.utils.premultiplyRgba(color.dark, color.light[3], dark, uniforms.uSampler.alphaMode);
+				dark[3] = color.dark[3];
+			}
+
 			if (this.uvMatrix.update()) {
 				this.uniforms.uTextureMatrix = this.uvMatrix.mapCoord;
 				if (this.allowTrim) {
