@@ -1,10 +1,15 @@
 # pixi-heaven
 
+[![Build](https://github.com/pixijs/pixi-heaven/workflows/Build/badge.svg)](https://github.com/pixijs/pixi-heaven/actions?query=workflow%3A%22Build%22) [![npm version](https://badge.fury.io/js/%40pixi%2Fpixi-heaven.svg)](https://badge.fury.io/js/%40pixi%2Fpixi-heaven)
+
 This is heaven for sprites. Want to color them better? Wanna use advanced colors? Its all here!
 
-For v4 please see [v4.x branch](https://github.com/gameofbombs/pixi-heaven/tree/v4.x) and use npm version `0.1.21`
+Works with PixiJS v6
 
-[Examples](https://pixijs.github.io/examples/#/plugin-heaven/invert.js)  
+For v5 please see [v5.x branch](https://github.com/gameofbombs/pixi-heaven/tree/v5.x), npm version `0.2.3`
+For v4 please see [v4.x branch](https://github.com/gameofbombs/pixi-heaven/tree/v4.x), npm version `0.1.21`
+
+[Examples](https://pixijs.github.io/examples/#/plugin-heaven/invert.js)
 
 Done:
 
@@ -12,29 +17,18 @@ Done:
 * Polygon packing
 * Mesh with trimmed textures
 
-### Be careful!
+### Migration
 
-It can affect performance. 
-Though what is performance, when you game looks like s@#$? 
-Spawn fewer objects but make it prettier!
-
-### Integration with pixi-spine
-
-[pixi-spine](https://github.com/pixijs/pixi-spine) is optional, however it is **REQUIRED** by typescript definitions. 
-
-Two ways:
-
-1. `<///reference types="pixi-spine.d.ts"/>`
-2. Use `pixi-spine.d.ts` file from `stubs` folder.
-
-In any case, put both `pixi.js` and `pixi-spine.js` before you include heaven in your build.
+To use es6 modules in IDE, its better to have distinct class names. That's why `PIXI.heaven.Sprite` is now `SpriteH`, same with `SimpleMeshH` and `BitmapTextH`
 
 ### How to use
 
-Just add `pixi-heaven.js` file in your build. 
+Just add `pixi-heaven.js` file in your build.
 
 ```js
-var sprite = new PIXI.heaven.Sprite();
+import { SpriteH } from 'pixi-heaven';
+
+var sprite = new SpriteH();
 // good old sprite tint
 sprite.color.setLight(0.5, 1.0, 0.5);
 
@@ -45,22 +39,18 @@ sprite.color.setDark(0.2, 0.2, 0.2);
 sprite.color.darkG = 0.1;
 ```
 
-Or convert PIXI sprite.
+Or convert PIXI sprite. In that case, make sure that you actually use heaven Sprite somewhere, or it'll be tree-shaken away.
 
 ```js
-var sprite = new PIXI.Sprite(someTexture);
+import { Sprite } from 'pixi.js';
+
+var sprite = new Sprite(someTexture);
 
 // pixi vanilla way, optional
 sprite.tint = 0x80ff80;
 
 // activate the plugin!
 sprite.convertToHeaven();
-```
-
-Note that if you are using TS, sprite type will be changed
-
-```ts
-let coloredSprite : PIXI.heaven.Sprite = sprite.convertColors();
 ```
 
 Useful example: invert the colors
@@ -83,24 +73,26 @@ sprite.color.invalidate();
 
 ### Meshes
 
-Heaven meshes `PIXI.heaven.SimpleMesh` can be used with trimmed textures.
+Heaven meshes `SimpleMeshH` can be used with trimmed textures.
 
 Unfortunately, meshes cant be converted, you have to create mesh instead of `PIXI.SimpleMesh`
 
 That adds extra shader switched, and disables batching, but it shows correct result!
 
-To switch it off, set 
+To switch it off, set
 
 ```js
+import {settings, CLAMP_OPTIONS} from 'pixi-heaven';
 // Default, PixiJS vanilla mode
-PIXI.heaven.settings.MESH_CLAMP = PIXI.heaven.CLAMP_OPTIONS.NEVER;
+settings.MESH_CLAMP = heaven.CLAMP_OPTIONS.NEVER;
 ```
 
-To always use the trimmed texture shader, set 
+To always use the trimmed texture shader, set
 
 ```js
+import {settings, CLAMP_OPTIONS} from 'pixi-heaven';
 // Default, PixiJS vanilla mode
-PIXI.heaven.settings.MESH_CLAMP = PIXI.heaven.CLAMP_OPTIONS.ALWAYS;
+settings.MESH_CLAMP = CLAMP_OPTIONS.ALWAYS;
 ```
 
 Mesh batching works the same way as in pixi.
@@ -112,12 +104,19 @@ PIXI.Mesh.BATCHABLE_SIZE = 1; // or not.
 
 ### How to use with spine
 
-This plugin enables light-dark tint of spine 3.6.
+This plugin enables light-dark tint of spine >= `3.6`.
+
+Mixin can be applied to any spine prototype class: SpineBase, Spine or your own extended class. Usually its applied to SpineBase.
 
 Light-dark tint works like in sprites.
 
 ```js
-spine = new PIXI.heaven.Spine();
+import {SpineBase} from '@pixi-spine/base';
+import {applySpineMixin} from 'pixi-heaven';
+
+applySpineMixin(SpineBase.prototype);
+
+spine = new Spine();
 spine.color.setLight(0.5, 1.0, 0.5);
 spine.color.setDark(0.2, 0.2, 0.2);
 ```
@@ -128,7 +127,8 @@ This feature comes from unity spine runtime - ADD can be emulated by NORMAL with
 It reduces number of batches and drawcalls.
 
 ```js
-PIXI.heaven.settings.BLEND_ADD_UNITY = true;
+import {settings} from 'pixi-heaven';
+settings.BLEND_ADD_UNITY = true;
 ```
 
 ### Animation
@@ -136,11 +136,13 @@ PIXI.heaven.settings.BLEND_ADD_UNITY = true;
 Thanks to @finscn, unlike pixiJS vanilla  `AnimatedSprite`, here animation is a component:
 
 ```js
-new PIXI.heaven.AnimationState(frames).bind(sprite);
+import {AnimationState} from 'pixi-heaven';
+
+new AnimationState(frames).bind(sprite);
 sprite.animState.gotoAndStop(2);
 ```
 
-It still uses `PIXI.Ticker.shared` if you dont specify `autoUpdate=false`. 
+It still uses `PIXI.Ticker.shared` if you dont specify `autoUpdate=false`.
 It will be stopped and destroyed with the bound element.
 
 ### How to mask sprites with sprites
@@ -148,55 +150,44 @@ It will be stopped and destroyed with the bound element.
 Plugin adds special renderer that has faster masks than just `sprite.mask`. It also works on heaven meshes.
 
 ```js
-sprite = new PIXI.heaven.Sprite();
+import {SpriteH} from 'pixi-heaven';
+
+sprite = new SpriteH();
 sprite.maskSprite = sprite2; //set it
 sprite.pluginName = 'batchMasked'; //enable special plugin rendering
 sprite2.renderable = false; //turn off rendering
 ```
 
-Batching works with spine, just enable maskSprite in any sprite or mesh of spine instance, 
+Batching works with spine, just enable maskSprite in any sprite or mesh of spine instance,
 all `pluginName`'s will be adjusted automagically.
 
-Look at [Spine file](https://github.com/gameofbombs/pixi-heaven/blob/master/src/z_spine/Spine.ts) to see 
-how it actually works. 
+Look at [Spine file](https://github.com/gameofbombs/pixi-heaven/blob/master/src/z_spine/Spine.ts) to see
+how it actually works.
 
-## WebPack and angular
+## Vanilla JS, UMD build
 
-Possible webpack way: 
+All pixiJS v6 plugins has special `umd` build suited for vanilla.
+Navigate `pixi-heaven` npm package, take `dist/pixi-heaven.umd.js` file.
 
-```js
-import * as PIXI from "pixi.js';
-window.PIXI = PIXI;
-import "pixi-spine";
-import "pixi-heaven";
+```html
+<script src='lib/pixi.js'></script>
+<script src='lib/pixi-heaven.umd.js'></script>
 ```
 
-Angular:
-
-```ts
-import * as PIXI from "pixi.js";
-global.PIXI = PIXI;
-require("pixi-spine");
-require("pixi-heaven");
-```
+all classes can be accessed through `PIXI.heaven` package.
 
 ## Building
 
 You will need to have [node][node] setup on your machine.
 
-Make sure you have [yarn][yarn] installed:
-
-    npm install -g yarn
-
 Then you can install dependencies and build:
 
 ```bash
-yarn
-yarn build
+npm i
+npm run build
 ```
 
 That will output the built distributables to `./dist`.
 
 [node]:             https://nodejs.org/
 [typescript]:       https://www.typescriptlang.org/
-[yarn]:             https://yarnpkg.com

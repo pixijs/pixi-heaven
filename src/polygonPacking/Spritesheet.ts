@@ -1,104 +1,109 @@
-namespace pixi_heaven {
-	export class TexturePolygon {
-		constructor(public vertices: ArrayLike<number>, public uvs: ArrayLike<number>, public indices: ArrayLike<number>) {
-		}
-	}
+import {Spritesheet} from "@pixi/spritesheet";
+import {Rectangle} from "@pixi/math";
+import {Texture} from "@pixi/core";
 
-	(PIXI.Spritesheet.prototype as any)._processFrames = function (initialFrameIndex: number) {
-		const meta = this.data.meta;
+export class TexturePolygon {
+    constructor(public vertices: ArrayLike<number>, public uvs: ArrayLike<number>, public indices: ArrayLike<number>) {
+    }
+}
 
-		let frameIndex = initialFrameIndex;
-		const maxFrames = PIXI.Spritesheet.BATCH_SIZE;
+export function applySpritesheetMixin(): void
+{
+    (Spritesheet.prototype as any)._processFrames = function (initialFrameIndex: number) {
+        const meta = this.data.meta;
 
-		while (frameIndex - initialFrameIndex < maxFrames && frameIndex < this._frameKeys.length)
-		{
-			const i = this._frameKeys[frameIndex];
-			const data = this._frames[i];
-			const rect = data.frame;
+        let frameIndex = initialFrameIndex;
+        const maxFrames = Spritesheet.BATCH_SIZE;
 
-			if (rect)
-			{
-				let frame = null;
-				let trim = null;
-				const sourceSize = data.trimmed !== false && data.sourceSize
-					? data.sourceSize : data.frame;
+        while (frameIndex - initialFrameIndex < maxFrames && frameIndex < this._frameKeys.length)
+        {
+            const i = this._frameKeys[frameIndex];
+            const data = this._frames[i];
+            const rect = data.frame;
 
-				const orig = new PIXI.Rectangle(
-					0,
-					0,
-					Math.floor(sourceSize.w) / this.resolution,
-					Math.floor(sourceSize.h) / this.resolution
-				);
+            if (rect)
+            {
+                let frame = null;
+                let trim = null;
+                const sourceSize = data.trimmed !== false && data.sourceSize
+                    ? data.sourceSize : data.frame;
 
-				if (data.rotated)
-				{
-					frame = new PIXI.Rectangle(
-						Math.floor(rect.x) / this.resolution,
-						Math.floor(rect.y) / this.resolution,
-						Math.floor(rect.h) / this.resolution,
-						Math.floor(rect.w) / this.resolution
-					);
-				}
-				else
-				{
-					frame = new PIXI.Rectangle(
-						Math.floor(rect.x) / this.resolution,
-						Math.floor(rect.y) / this.resolution,
-						Math.floor(rect.w) / this.resolution,
-						Math.floor(rect.h) / this.resolution
-					);
-				}
+                const orig = new Rectangle(
+                    0,
+                    0,
+                    Math.floor(sourceSize.w) / this.resolution,
+                    Math.floor(sourceSize.h) / this.resolution
+                );
 
-				//  Check to see if the sprite is trimmed
-				if (data.trimmed !== false && data.spriteSourceSize)
-				{
-					trim = new PIXI.Rectangle(
-						Math.floor(data.spriteSourceSize.x) / this.resolution,
-						Math.floor(data.spriteSourceSize.y) / this.resolution,
-						Math.floor(rect.w) / this.resolution,
-						Math.floor(rect.h) / this.resolution
-					);
-				}
+                if (data.rotated)
+                {
+                    frame = new Rectangle(
+                        Math.floor(rect.x) / this.resolution,
+                        Math.floor(rect.y) / this.resolution,
+                        Math.floor(rect.h) / this.resolution,
+                        Math.floor(rect.w) / this.resolution
+                    );
+                }
+                else
+                {
+                    frame = new Rectangle(
+                        Math.floor(rect.x) / this.resolution,
+                        Math.floor(rect.y) / this.resolution,
+                        Math.floor(rect.w) / this.resolution,
+                        Math.floor(rect.h) / this.resolution
+                    );
+                }
 
-				this.textures[i] = new PIXI.Texture(
-					this.baseTexture,
-					frame,
-					orig,
-					trim,
-					data.rotated ? 2 : 0,
-					data.anchor
-				);
+                //  Check to see if the sprite is trimmed
+                if (data.trimmed !== false && data.spriteSourceSize)
+                {
+                    trim = new Rectangle(
+                        Math.floor(data.spriteSourceSize.x) / this.resolution,
+                        Math.floor(data.spriteSourceSize.y) / this.resolution,
+                        Math.floor(rect.w) / this.resolution,
+                        Math.floor(rect.h) / this.resolution
+                    );
+                }
 
-				if (data.vertices) {
-					const vertices = new Float32Array(data.vertices.length * 2);
+                this.textures[i] = new Texture(
+                    this.baseTexture,
+                    frame,
+                    orig,
+                    trim,
+                    data.rotated ? 2 : 0,
+                    data.anchor
+                );
 
-					for (let i = 0; i < data.vertices.length; i++) {
-						vertices[i * 2] = Math.floor(data.vertices[i][0] ) / this.resolution;
-						vertices[i * 2 + 1] = Math.floor(data.vertices[i][1] ) / this.resolution;
-					}
+                if (data.vertices) {
+                    const vertices = new Float32Array(data.vertices.length * 2);
 
-					const uvs = new Float32Array(data.verticesUV.length * 2);
+                    for (let i = 0; i < data.vertices.length; i++) {
+                        vertices[i * 2] = Math.floor(data.vertices[i][0] ) / this.resolution;
+                        vertices[i * 2 + 1] = Math.floor(data.vertices[i][1] ) / this.resolution;
+                    }
 
-					for (let i = 0; i < data.verticesUV.length; i++) {
-						uvs[i * 2] = data.verticesUV[i][0] / meta.size.w;
-						uvs[i * 2 + 1] = data.verticesUV[i][1] / meta.size.h;
-					}
+                    const uvs = new Float32Array(data.verticesUV.length * 2);
 
-					const indices = new Uint16Array(data.triangles.length * 3);
-					for (let i = 0; i < data.triangles.length; i++) {
-						indices[i * 3] = data.triangles[i][0];
-						indices[i * 3 + 1] = data.triangles[i][1];
-						indices[i * 3 + 2] = data.triangles[i][2];
-					}
+                    for (let i = 0; i < data.verticesUV.length; i++) {
+                        uvs[i * 2] = data.verticesUV[i][0] / meta.size.w;
+                        uvs[i * 2 + 1] = data.verticesUV[i][1] / meta.size.h;
+                    }
 
-					(this.textures[i] as any).polygon = new TexturePolygon(vertices, uvs, indices);
-				}
+                    const indices = new Uint16Array(data.triangles.length * 3);
+                    for (let i = 0; i < data.triangles.length; i++) {
+                        indices[i * 3] = data.triangles[i][0];
+                        indices[i * 3 + 1] = data.triangles[i][1];
+                        indices[i * 3 + 2] = data.triangles[i][2];
+                    }
 
-				// lets also add the frame to pixi's global cache for 'from' and 'fromLoader' functions
-				PIXI.Texture.addToCache(this.textures[i], i);
-			}
+                    (this.textures[i] as any).polygon = new TexturePolygon(vertices, uvs, indices);
+                }
 
-			frameIndex++;
-		}
-	}
+                // lets also add the frame to pixi's global cache for 'from' and 'fromLoader' functions
+                Texture.addToCache(this.textures[i], i);
+            }
+
+            frameIndex++;
+        }
+    }
 }

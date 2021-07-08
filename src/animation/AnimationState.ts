@@ -1,271 +1,274 @@
-namespace pixi_heaven {
-	export interface IFrameObject {
-		texture: PIXI.Texture;
-		time: number;
-	}
+import {Texture} from "@pixi/core";
+import {Ticker, UPDATE_PRIORITY} from "@pixi/ticker";
 
-	export interface ITextureAnimationTarget {
-		texture: PIXI.Texture;
-		animState: AnimationState;
-	}
+export interface IFrameObject {
+    texture: Texture;
+    time: number;
+}
 
-	export class AnimationState {
-		texture: PIXI.Texture;
+export interface ITextureAnimationTarget {
+    texture: Texture;
+    animState: AnimationState;
+}
 
-		_textures: Array<PIXI.Texture> = null;
-		_durations: Array<number> = null;
-		_autoUpdate: boolean;
-		animationSpeed: number = 1;
-		_target: ITextureAnimationTarget;
-		loop = true;
-		onComplete: Function = null;
-		onFrameChange: Function = null;
-		onLoop: Function = null;
-		_currentTime: number = 0;
-		playing: boolean = false;
+export class AnimationState {
+    texture: Texture;
 
-		constructor(textures: Array<PIXI.Texture> | Array<IFrameObject>, autoUpdate?: boolean) {
-			this.texture = textures[0] instanceof PIXI.Texture ? textures[0] as PIXI.Texture : (textures[0] as IFrameObject).texture;
+    _textures: Array<Texture> = null;
+    _durations: Array<number> = null;
+    _autoUpdate: boolean;
+    animationSpeed = 1;
+    _target: ITextureAnimationTarget;
+    loop = true;
+    onComplete?: () => void;
+    onFrameChange?: (currentFrame: number) => void;
+    onLoop?: () => void;
+    _currentTime = 0;
+    playing = false;
 
-			this.textures = textures as Array<PIXI.Texture>;
+    constructor(textures: Array<Texture> | Array<IFrameObject>, autoUpdate?: boolean) {
+        this.texture = textures[0] instanceof Texture ? textures[0] as Texture : (textures[0] as IFrameObject).texture;
 
-			this._autoUpdate = autoUpdate !== false;
-		}
+        this.textures = textures as Array<Texture>;
 
-		/**
-		 * Stops the AnimatedSprite
-		 *
-		 */
-		stop() {
-			if (!this.playing) {
-				return;
-			}
+        this._autoUpdate = autoUpdate !== false;
+    }
 
-			this.playing = false;
-			if (this._autoUpdate) {
-				PIXI.Ticker.shared.remove(this.update, this);
-			}
-		}
+    /**
+     * Stops the AnimatedSprite
+     *
+     */
+    stop() {
+        if (!this.playing) {
+            return;
+        }
 
-		/**
-		 * Plays the AnimatedSprite
-		 *
-		 */
-		play() {
-			if (this.playing) {
-				return;
-			}
+        this.playing = false;
+        if (this._autoUpdate) {
+            Ticker.shared.remove(this.update, this);
+        }
+    }
 
-			this.playing = true;
-			if (this._autoUpdate) {
-				PIXI.Ticker.shared.add(this.update, this, PIXI.UPDATE_PRIORITY.HIGH);
-			}
-		}
+    /**
+     * Plays the AnimatedSprite
+     *
+     */
+    play() {
+        if (this.playing) {
+            return;
+        }
 
-		/**
-		 * Stops the AnimatedSprite and goes to a specific frame
-		 *
-		 * @param {number} frameNumber - frame index to stop at
-		 */
-		gotoAndStop(frameNumber: number) {
-			this.stop();
+        this.playing = true;
+        if (this._autoUpdate) {
+            Ticker.shared.add(this.update, this, UPDATE_PRIORITY.HIGH);
+        }
+    }
 
-			const previousFrame = this.currentFrame;
+    /**
+     * Stops the AnimatedSprite and goes to a specific frame
+     *
+     * @param {number} frameNumber - frame index to stop at
+     */
+    gotoAndStop(frameNumber: number) {
+        this.stop();
 
-			this._currentTime = frameNumber;
+        const previousFrame = this.currentFrame;
 
-			if (previousFrame !== this.currentFrame) {
-				this.updateTexture();
-			}
-		}
+        this._currentTime = frameNumber;
 
-		/**
-		 * Goes to a specific frame and begins playing the AnimatedSprite
-		 *
-		 * @param {number} frameNumber - frame index to start at
-		 */
-		gotoAndPlay(frameNumber: number) {
-			const previousFrame = this.currentFrame;
+        if (previousFrame !== this.currentFrame) {
+            this.updateTexture();
+        }
+    }
 
-			this._currentTime = frameNumber;
+    /**
+     * Goes to a specific frame and begins playing the AnimatedSprite
+     *
+     * @param {number} frameNumber - frame index to start at
+     */
+    gotoAndPlay(frameNumber: number) {
+        const previousFrame = this.currentFrame;
 
-			if (previousFrame !== this.currentFrame) {
-				this.updateTexture();
-			}
+        this._currentTime = frameNumber;
 
-			this.play();
-		}
+        if (previousFrame !== this.currentFrame) {
+            this.updateTexture();
+        }
 
-		/**
-		 * Updates the object transform for rendering.
-		 *
-		 * @private
-		 * @param {number} deltaTime - Time since last tick.
-		 */
-		update(deltaTime: number) {
-			const elapsed = this.animationSpeed * deltaTime;
-			const previousFrame = this.currentFrame;
+        this.play();
+    }
 
-			if (this._durations !== null) {
-				let lag = this._currentTime % 1 * this._durations[this.currentFrame];
+    /**
+     * Updates the object transform for rendering.
+     *
+     * @private
+     * @param {number} deltaTime - Time since last tick.
+     */
+    update(deltaTime: number) {
+        const elapsed = this.animationSpeed * deltaTime;
+        const previousFrame = this.currentFrame;
 
-				lag += elapsed / 60 * 1000;
+        if (this._durations !== null) {
+            let lag = this._currentTime % 1 * this._durations[this.currentFrame];
 
-				while (lag < 0) {
-					this._currentTime--;
-					lag += this._durations[this.currentFrame];
-				}
+            lag += elapsed / 60 * 1000;
 
-				let sign = this.animationSpeed * deltaTime;
+            while (lag < 0) {
+                this._currentTime--;
+                lag += this._durations[this.currentFrame];
+            }
 
-				if (sign < 0) sign = -1;
-				else if (sign > 0) sign = 1;
+            let sign = this.animationSpeed * deltaTime;
 
-				this._currentTime = Math.floor(this._currentTime);
+            if (sign < 0) sign = -1;
+            else if (sign > 0) sign = 1;
 
-				while (lag >= this._durations[this.currentFrame]) {
-					lag -= this._durations[this.currentFrame] * sign;
-					this._currentTime += sign;
-				}
+            this._currentTime = Math.floor(this._currentTime);
 
-				this._currentTime += lag / this._durations[this.currentFrame];
-			}
-			else {
-				this._currentTime += elapsed;
-			}
+            while (lag >= this._durations[this.currentFrame]) {
+                lag -= this._durations[this.currentFrame] * sign;
+                this._currentTime += sign;
+            }
 
-			if (this._currentTime < 0 && !this.loop) {
-				this.gotoAndStop(0);
+            this._currentTime += lag / this._durations[this.currentFrame];
+        }
+        else {
+            this._currentTime += elapsed;
+        }
 
-				if (this.onComplete) {
-					this.onComplete();
-				}
-			}
-			else if (this._currentTime >= this._textures.length && !this.loop) {
-				this.gotoAndStop(this._textures.length - 1);
+        if (this._currentTime < 0 && !this.loop) {
+            this.gotoAndStop(0);
 
-				if (this.onComplete) {
-					this.onComplete();
-				}
-			}
-			else if (previousFrame !== this.currentFrame) {
-				if (this.loop && this.onLoop) {
-					if (this.animationSpeed > 0 && this.currentFrame < previousFrame) {
-						this.onLoop();
-					}
-					else if (this.animationSpeed < 0 && this.currentFrame > previousFrame) {
-						this.onLoop();
-					}
-				}
+            if (this.onComplete) {
+                this.onComplete();
+            }
+        }
+        else if (this._currentTime >= this._textures.length && !this.loop) {
+            this.gotoAndStop(this._textures.length - 1);
 
-				this.updateTexture();
-			}
-		}
+            if (this.onComplete) {
+                this.onComplete();
+            }
+        }
+        else if (previousFrame !== this.currentFrame) {
+            if (this.loop && this.onLoop) {
+                if (this.animationSpeed > 0 && this.currentFrame < previousFrame) {
+                    this.onLoop();
+                }
+                else if (this.animationSpeed < 0 && this.currentFrame > previousFrame) {
+                    this.onLoop();
+                }
+            }
 
-		/**
-		 * Updates the displayed texture to match the current frame index
-		 *
-		 * @private
-		 */
-		updateTexture() {
-			this.texture = this._textures[this.currentFrame];
-			if (this._target) {
-				this._target.texture = this.texture;
-			}
-			if (this.onFrameChange) {
-				this.onFrameChange(this.currentFrame);
-			}
-		}
+            this.updateTexture();
+        }
+    }
 
-		bind(target: ITextureAnimationTarget) {
-			this._target = target;
-			target.animState = this;
-		}
+    /**
+     * Updates the displayed texture to match the current frame index
+     *
+     * @private
+     */
+    updateTexture() {
+        this.texture = this._textures[this.currentFrame];
+        if (this._target) {
+            this._target.texture = this.texture;
+        }
+        if (this.onFrameChange) {
+            this.onFrameChange(this.currentFrame);
+        }
+    }
 
-		/**
-		 * A short hand way of creating a movieclip from an array of frame ids
-		 *
-		 * @static
-		 * @param {string[]} frames - The array of frames ids the movieclip will use as its texture frames
-		 * @return {AnimatedSprite} The new animated sprite with the specified frames.
-		 */
-		static fromFrames(frames: Array<string>) {
-			const textures = [];
+    bind(target: ITextureAnimationTarget) {
+        this._target = target;
+        target.animState = this;
+    }
 
-			for (let i = 0; i < frames.length; ++i) {
-				textures.push(PIXI.Texture.from(frames[i]));
-			}
+    /**
+     * A short hand way of creating a movieclip from an array of frame ids
+     *
+     * @static
+     * @param {string[]} frames - The array of frames ids the movieclip will use as its texture frames
+     * @return {AnimatedSprite} The new animated sprite with the specified frames.
+     */
+    static fromFrames(frames: Array<string>) {
+        const textures = [];
 
-			return new AnimationState(textures);
-		}
+        for (let i = 0; i < frames.length; ++i) {
+            textures.push(Texture.from(frames[i]));
+        }
 
-		/**
-		 * A short hand way of creating a movieclip from an array of image ids
-		 *
-		 * @static
-		 * @param {string[]} images - the array of image urls the movieclip will use as its texture frames
-		 * @return {AnimatedSprite} The new animate sprite with the specified images as frames.
-		 */
-		static fromImages(images: Array<string>) {
-			const textures = [];
+        return new AnimationState(textures);
+    }
 
-			for (let i = 0; i < images.length; ++i) {
-				textures.push(PIXI.Texture.from(images[i]));
-			}
+    /**
+     * A short hand way of creating a movieclip from an array of image ids
+     *
+     * @static
+     * @param {string[]} images - the array of image urls the movieclip will use as its texture frames
+     * @return {AnimatedSprite} The new animate sprite with the specified images as frames.
+     */
+    static fromImages(images: Array<string>) {
+        const textures = [];
 
-			return new AnimationState(textures);
-		}
+        for (let i = 0; i < images.length; ++i) {
+            textures.push(Texture.from(images[i]));
+        }
 
-		/**
-		 * totalFrames is the total number of frames in the AnimatedSprite. This is the same as number of textures
-		 * assigned to the AnimatedSprite.
-		 *
-		 * @readonly
-		 * @member {number}
-		 * @default 0
-		 */
-		get totalFrames() {
-			return this._textures.length;
-		}
+        return new AnimationState(textures);
+    }
 
-		/**
-		 * The array of textures used for this AnimatedSprite
-		 *
-		 * @member {PIXI.Texture[]}
-		 */
-		get textures() {
-			return this._textures;
-		}
+    /**
+     * totalFrames is the total number of frames in the AnimatedSprite. This is the same as number of textures
+     * assigned to the AnimatedSprite.
+     *
+     * @readonly
+     * @member {number}
+     * @default 0
+     */
+    get totalFrames() {
+        return this._textures.length;
+    }
 
-		set textures(value) {
-			if (value[0] instanceof PIXI.Texture) {
-				this._textures = value;
-				this._durations = null;
-			}
-			else {
-				this._textures = [];
-				this._durations = [];
+    /**
+     * The array of textures used for this AnimatedSprite
+     *
+     * @member {Texture[]}
+     */
+    get textures(): Texture[]|IFrameObject[]
+    {
+        return this._textures;
+    }
 
-				for (let i = 0; i < value.length; i++) {
-					const val = (value as any)[i];
-					this._textures.push(val.texture);
-					this._durations.push(val.time);
-				}
-			}
-			this.gotoAndStop(0);
-			this.updateTexture();
-		}
+    set textures(value: Texture[]|IFrameObject[])
+    {
+        if (value[0] instanceof Texture) {
+            this._textures = value as Texture[];
+            this._durations = null;
+        }
+        else {
+            this._textures = [];
+            this._durations = [];
 
-		get currentFrame()
-		{
-			let currentFrame = Math.floor(this._currentTime) % this._textures.length;
+            for (let i = 0; i < value.length; i++) {
+                const val = (value as any)[i];
+                this._textures.push(val.texture);
+                this._durations.push(val.time);
+            }
+        }
+        this.gotoAndStop(0);
+        this.updateTexture();
+    }
 
-			if (currentFrame < 0)
-			{
-				currentFrame += this._textures.length;
-			}
+    get currentFrame()
+    {
+        let currentFrame = Math.floor(this._currentTime) % this._textures.length;
 
-			return currentFrame;
-		}
-	}
+        if (currentFrame < 0)
+        {
+            currentFrame += this._textures.length;
+        }
+
+        return currentFrame;
+    }
 }

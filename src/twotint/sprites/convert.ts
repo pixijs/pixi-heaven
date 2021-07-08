@@ -1,83 +1,69 @@
-declare module PIXI {
-	interface Sprite {
-		convertToHeaven(): pixi_heaven.Sprite;
-	}
+import {Container} from "@pixi/display";
+import {Sprite} from "@pixi/sprite";
+import {SpriteH} from "./SpriteH";
+import {ColorTransform} from "../ColorTransform";
 
-	interface Mesh {
-		convertToHeaven(): void;
-	}
+export function applyConvertMixins() {
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    Container.prototype.convertToHeaven = function () {
+    };
 
-	interface Graphics {
-		convertToHeaven(): void;
-	}
+    function tintGet() {
+        return this.color.tintBGR;
+    }
 
-	interface Container {
-		convertToHeaven(): void;
+    function tintSet(value: number) {
+        this.color.tintBGR = value;
+    }
 
-		convertSubtreeToHeaven(): void;
-	}
+    function tintRGBGet() {
+        this.color.updateTransform();
+        return this.color.lightRgba & 0xffffff;
+    }
 
-	// TODO: ParticleContainer?
-}
+    const SpriteProto = SpriteH.prototype as any;
 
-namespace pixi_heaven {
-	(PIXI as any).Container.prototype.convertToHeaven = function () {
-	};
+    Sprite.prototype.convertToHeaven = function () {
+        if (this.color) {
+            return;
+        }
 
-	function tintGet() {
-		return this.color.tintBGR;
-	}
+        Object.defineProperty(this, "tint", {
+            get: tintGet,
+            set: tintSet,
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(this, "_tintRGB", {
+            get: tintRGBGet,
+            enumerable: true,
+            configurable: true
+        });
+        this._onTextureUpdate = SpriteProto._onTextureUpdate;
+        this._render = SpriteProto._render;
+        this._calculateBounds = SpriteProto._calculateBounds;
+        this.calculateVertices = SpriteProto.calculateVertices;
+        this._onTextureUpdate = SpriteProto._onTextureUpdate;
+        this.calculateMaskVertices = SpriteProto.calculateMaskVertices;
+        this.destroy = SpriteH.prototype.destroy;
+        this.color = new ColorTransform();
+        this.pluginName = 'batchHeaven';
 
-	function tintSet(value: number) {
-		this.color.tintBGR = value;
-	}
+        if (this._texture.valid) {
+            this._onTextureUpdate();
+        } else {
+            this._texture.off('update', this._onTextureUpdate);
+            this._texture.on('update', this._onTextureUpdate, this);
+        }
+        return this;
+    };
 
-	function tintRGBGet() {
-		this.color.updateTransform();
-		return this.color.lightRgba & 0xffffff;
-	}
-
-	(PIXI as any).Sprite.prototype.convertToHeaven = function () {
-		if (this.color) {
-			return;
-		}
-
-		Object.defineProperty(this, "tint", {
-			get: tintGet,
-			set: tintSet,
-			enumerable: true,
-			configurable: true
-		});
-		Object.defineProperty(this, "_tintRGB", {
-			get: tintRGBGet,
-			enumerable: true,
-			configurable: true
-		});
-		this._onTextureUpdate = Sprite.prototype._onTextureUpdate;
-		this._render = Sprite.prototype._render;
-		this._calculateBounds = Sprite.prototype._calculateBounds;
-		this.calculateVertices = Sprite.prototype.calculateVertices;
-		this._onTextureUpdate = Sprite.prototype._onTextureUpdate;
-		this.calculateMaskVertices = Sprite.prototype.calculateMaskVertices;
-		this.destroy = Sprite.prototype.destroy;
-		this.color = new ColorTransform();
-		this.pluginName = 'batchHeaven';
-
-		if (this._texture.valid) {
-			this._onTextureUpdate();
-		} else {
-			this._texture.off('update', this._onTextureUpdate);
-			this._texture.on('update', this._onTextureUpdate, this);
-		}
-		return this;
-	};
-
-	(PIXI as any).Container.prototype.convertSubtreeToHeaven = function () {
-		if (this.convertToHeaven) {
-			this.convertToHeaven();
-		}
-		for (let i = 0; i < this.children.length; i++) {
-			this.children[i].convertSubtreeToHeaven();
-		}
-	};
+    Container.prototype.convertSubtreeToHeaven = function () {
+        if (this.convertToHeaven) {
+            this.convertToHeaven();
+        }
+        for (let i = 0; i < this.children.length; i++) {
+            this.children[i].convertSubtreeToHeaven();
+        }
+    };
 }
