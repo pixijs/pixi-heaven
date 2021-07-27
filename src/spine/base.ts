@@ -3,7 +3,6 @@ import { Sprite } from '@pixi/sprite';
 import { Texture } from '@pixi/core';
 import { Graphics } from '@pixi/graphics';
 import { SimpleMesh } from '@pixi/mesh-extras';
-import {ColorTransform} from "../twotint";
 
 export interface ISpineClass {
     newContainer(): Container;
