@@ -2,7 +2,7 @@ import {AnimationState, ITextureAnimationTarget} from '../../animation/Animation
 import {Matrix} from '@pixi/math';
 import {ColorTransform} from '../ColorTransform';
 import {Renderer, Texture, TextureMatrix} from '@pixi/core';
-import {Sprite} from '@pixi/Sprite';
+import {Sprite} from '@pixi/sprite';
 import {sign} from '@pixi/utils';
 
 const tempMat = new Matrix();
