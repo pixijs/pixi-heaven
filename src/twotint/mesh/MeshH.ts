@@ -7,6 +7,7 @@ import {DoubleTintMeshMaterial} from "./DoubleTintMeshMaterial";
 export class MeshH extends MeshBase {
     color: ColorTransform = null;
     maskSprite: SpriteH = null;
+    maskVertexData: Float32Array = null;
     useSpriteMask = false;
 
     constructor(geometry: Geometry, shader: DoubleTintMeshMaterial, state: State, drawMode?: number) {
@@ -48,7 +49,7 @@ export class MeshH extends MeshBase {
             (this.material as any).pluginName = 'batchMasked';
             this._renderToBatch(renderer);
         } else {
-            super._renderDefault(renderer);
+            super._render(renderer);
         }
     }
 
@@ -56,6 +57,10 @@ export class MeshH extends MeshBase {
     {
         this.color.updateTransform();
         super._renderToBatch(renderer);
+    }
+
+    calculateMaskVertices() {
+        SpriteH.prototype.calculateMaskVertices.call(this);
     }
 }
 
