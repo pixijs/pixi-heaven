@@ -56,7 +56,8 @@
   },
   "files": [
     "dist/",
-    "lib/"
+    "lib/",
+    "global.d.ts"
   ],
   "peerDependencies": {
     "@pixi/core": "^7.2.0",
