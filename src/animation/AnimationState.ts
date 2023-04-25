@@ -1,17 +1,20 @@
-import {Texture} from "@pixi/core";
-import {Ticker, UPDATE_PRIORITY} from "@pixi/ticker";
+import { Texture } from '@pixi/core';
+import { Ticker, UPDATE_PRIORITY } from '@pixi/ticker';
 
-export interface IFrameObject {
+export interface IFrameObject
+{
     texture: Texture;
     time: number;
 }
 
-export interface ITextureAnimationTarget {
+export interface ITextureAnimationTarget
+{
     texture: Texture;
     animState: AnimationState;
 }
 
-export class AnimationState {
+export class AnimationState
+{
     texture: Texture;
 
     _textures: Array<Texture> = null;
@@ -26,7 +29,8 @@ export class AnimationState {
     _currentTime = 0;
     playing = false;
 
-    constructor(textures: Array<Texture> | Array<IFrameObject>, autoUpdate?: boolean) {
+    constructor(textures: Array<Texture> | Array<IFrameObject>, autoUpdate?: boolean)
+    {
         this.texture = textures[0] instanceof Texture ? textures[0] as Texture : (textures[0] as IFrameObject).texture;
 
         this.textures = textures as Array<Texture>;
@@ -38,13 +42,16 @@ export class AnimationState {
      * Stops the AnimatedSprite
      *
      */
-    stop() {
-        if (!this.playing) {
+    stop()
+    {
+        if (!this.playing)
+        {
             return;
         }
 
         this.playing = false;
-        if (this._autoUpdate) {
+        if (this._autoUpdate)
+        {
             Ticker.shared.remove(this.update, this);
         }
     }
@@ -53,13 +60,16 @@ export class AnimationState {
      * Plays the AnimatedSprite
      *
      */
-    play() {
-        if (this.playing) {
+    play()
+    {
+        if (this.playing)
+        {
             return;
         }
 
         this.playing = true;
-        if (this._autoUpdate) {
+        if (this._autoUpdate)
+        {
             Ticker.shared.add(this.update, this, UPDATE_PRIORITY.HIGH);
         }
     }
@@ -69,14 +79,16 @@ export class AnimationState {
      *
      * @param {number} frameNumber - frame index to stop at
      */
-    gotoAndStop(frameNumber: number) {
+    gotoAndStop(frameNumber: number)
+    {
         this.stop();
 
         const previousFrame = this.currentFrame;
 
         this._currentTime = frameNumber;
 
-        if (previousFrame !== this.currentFrame) {
+        if (previousFrame !== this.currentFrame)
+        {
             this.updateTexture();
         }
     }
@@ -86,12 +98,14 @@ export class AnimationState {
      *
      * @param {number} frameNumber - frame index to start at
      */
-    gotoAndPlay(frameNumber: number) {
+    gotoAndPlay(frameNumber: number)
+    {
         const previousFrame = this.currentFrame;
 
         this._currentTime = frameNumber;
 
-        if (previousFrame !== this.currentFrame) {
+        if (previousFrame !== this.currentFrame)
+        {
             this.updateTexture();
         }
 
@@ -104,16 +118,19 @@ export class AnimationState {
      * @private
      * @param {number} deltaTime - Time since last tick.
      */
-    update(deltaTime: number) {
+    update(deltaTime: number)
+    {
         const elapsed = this.animationSpeed * deltaTime;
         const previousFrame = this.currentFrame;
 
-        if (this._durations !== null) {
+        if (this._durations !== null)
+        {
             let lag = this._currentTime % 1 * this._durations[this.currentFrame];
 
             lag += elapsed / 60 * 1000;
 
-            while (lag < 0) {
+            while (lag < 0)
+            {
                 this._currentTime--;
                 lag += this._durations[this.currentFrame];
             }
@@ -125,37 +142,47 @@ export class AnimationState {
 
             this._currentTime = Math.floor(this._currentTime);
 
-            while (lag >= this._durations[this.currentFrame]) {
+            while (lag >= this._durations[this.currentFrame])
+            {
                 lag -= this._durations[this.currentFrame] * sign;
                 this._currentTime += sign;
             }
 
             this._currentTime += lag / this._durations[this.currentFrame];
         }
-        else {
+        else
+        {
             this._currentTime += elapsed;
         }
 
-        if (this._currentTime < 0 && !this.loop) {
+        if (this._currentTime < 0 && !this.loop)
+        {
             this.gotoAndStop(0);
 
-            if (this.onComplete) {
+            if (this.onComplete)
+            {
                 this.onComplete();
             }
         }
-        else if (this._currentTime >= this._textures.length && !this.loop) {
+        else if (this._currentTime >= this._textures.length && !this.loop)
+        {
             this.gotoAndStop(this._textures.length - 1);
 
-            if (this.onComplete) {
+            if (this.onComplete)
+            {
                 this.onComplete();
             }
         }
-        else if (previousFrame !== this.currentFrame) {
-            if (this.loop && this.onLoop) {
-                if (this.animationSpeed > 0 && this.currentFrame < previousFrame) {
+        else if (previousFrame !== this.currentFrame)
+        {
+            if (this.loop && this.onLoop)
+            {
+                if (this.animationSpeed > 0 && this.currentFrame < previousFrame)
+                {
                     this.onLoop();
                 }
-                else if (this.animationSpeed < 0 && this.currentFrame > previousFrame) {
+                else if (this.animationSpeed < 0 && this.currentFrame > previousFrame)
+                {
                     this.onLoop();
                 }
             }
@@ -169,17 +196,21 @@ export class AnimationState {
      *
      * @private
      */
-    updateTexture() {
+    updateTexture()
+    {
         this.texture = this._textures[this.currentFrame];
-        if (this._target) {
+        if (this._target)
+        {
             this._target.texture = this.texture;
         }
-        if (this.onFrameChange) {
+        if (this.onFrameChange)
+        {
             this.onFrameChange(this.currentFrame);
         }
     }
 
-    bind(target: ITextureAnimationTarget) {
+    bind(target: ITextureAnimationTarget)
+    {
         this._target = target;
         target.animState = this;
     }
@@ -191,10 +222,12 @@ export class AnimationState {
      * @param {string[]} frames - The array of frames ids the movieclip will use as its texture frames
      * @return {AnimatedSprite} The new animated sprite with the specified frames.
      */
-    static fromFrames(frames: Array<string>) {
+    static fromFrames(frames: Array<string>)
+    {
         const textures = [];
 
-        for (let i = 0; i < frames.length; ++i) {
+        for (let i = 0; i < frames.length; ++i)
+        {
             textures.push(Texture.from(frames[i]));
         }
 
@@ -208,10 +241,12 @@ export class AnimationState {
      * @param {string[]} images - the array of image urls the movieclip will use as its texture frames
      * @return {AnimatedSprite} The new animate sprite with the specified images as frames.
      */
-    static fromImages(images: Array<string>) {
+    static fromImages(images: Array<string>)
+    {
         const textures = [];
 
-        for (let i = 0; i < images.length; ++i) {
+        for (let i = 0; i < images.length; ++i)
+        {
             textures.push(Texture.from(images[i]));
         }
 
@@ -226,7 +261,8 @@ export class AnimationState {
      * @member {number}
      * @default 0
      */
-    get totalFrames() {
+    get totalFrames()
+    {
         return this._textures.length;
     }
 
@@ -235,23 +271,27 @@ export class AnimationState {
      *
      * @member {Texture[]}
      */
-    get textures(): Texture[]|IFrameObject[]
+    get textures(): Texture[] | IFrameObject[]
     {
         return this._textures;
     }
 
-    set textures(value: Texture[]|IFrameObject[])
+    set textures(value: Texture[] | IFrameObject[])
     {
-        if (value[0] instanceof Texture) {
+        if (value[0] instanceof Texture)
+        {
             this._textures = value as Texture[];
             this._durations = null;
         }
-        else {
+        else
+        {
             this._textures = [];
             this._durations = [];
 
-            for (let i = 0; i < value.length; i++) {
+            for (let i = 0; i < value.length; i++)
+            {
                 const val = (value as any)[i];
+
                 this._textures.push(val.texture);
                 this._durations.push(val.time);
             }

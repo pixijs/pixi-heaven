@@ -1,8 +1,7 @@
-import {Program, Shader, Texture, TextureMatrix} from "@pixi/core";
-import {premultiplyRgba} from "@pixi/utils";
-import {Matrix} from "@pixi/math";
-import {ColorTransform} from "../ColorTransform";
-import {CLAMP_OPTIONS, settings} from "../../settings";
+import { Color, Program, Shader, Texture, TextureMatrix } from '@pixi/core';
+import { Matrix } from '@pixi/math';
+import { ColorTransform } from '../ColorTransform';
+import { CLAMP_OPTIONS, settings } from '../../settings';
 
 const vertex = `attribute vec2 aVertexPosition;
 attribute vec2 aTextureCoord;
@@ -52,7 +51,10 @@ void main(void)
 }
 `;
 
-export class DoubleTintMeshMaterial extends Shader {
+const tmpClr = new Color();
+
+export class DoubleTintMeshMaterial extends Shader
+{
     uvMatrix: TextureMatrix;
     batchable: boolean;
     readonly allowTrim: boolean;
@@ -60,7 +62,8 @@ export class DoubleTintMeshMaterial extends Shader {
     color: ColorTransform;
     _colorId: number;
 
-    constructor(uSampler: Texture, options?: any) {
+    constructor(uSampler: Texture, options?: any)
+    {
         const uniforms = {
             uSampler,
             uTextureMatrix: Matrix.IDENTITY,
@@ -75,19 +78,25 @@ export class DoubleTintMeshMaterial extends Shader {
 
         let allowTrim = options.allowTrim;
 
-        if (!allowTrim) {
-            if (settings.MESH_CLAMP === CLAMP_OPTIONS.AUTO) {
-                allowTrim = uSampler.trim && (uSampler.trim.width < uSampler.orig.width || uSampler.trim.height < uSampler.orig.height);
-            } else if (settings.MESH_CLAMP === CLAMP_OPTIONS.ALWAYS) {
+        if (!allowTrim)
+        {
+            if (settings.MESH_CLAMP === CLAMP_OPTIONS.AUTO)
+            {
+                allowTrim = uSampler.trim
+                    && (uSampler.trim.width < uSampler.orig.width || uSampler.trim.height < uSampler.orig.height);
+            }
+            else if (settings.MESH_CLAMP === CLAMP_OPTIONS.ALWAYS)
+            {
                 allowTrim = true;
             }
         }
 
-        if (options.uniforms) {
+        if (options.uniforms)
+        {
             (Object as any).assign(uniforms, options.uniforms);
         }
 
-        super(options.program || Program.from(vertex, allowTrim ? fragTrim: fragment), uniforms);
+        super(options.program || Program.from(vertex, allowTrim ? fragTrim : fragment), uniforms);
 
         this.allowTrim = allowTrim;
 
@@ -123,12 +132,15 @@ export class DoubleTintMeshMaterial extends Shader {
      * Reference to the texture being rendered.
      * @member {Texture}
      */
-    get texture() {
+    get texture()
+    {
         return this.uniforms.uSampler;
     }
 
-    set texture(value) {
-        if (this.uniforms.uSampler !== value) {
+    set texture(value)
+    {
+        if (this.uniforms.uSampler !== value)
+        {
             this.uniforms.uSampler = value;
             this.uvMatrix.texture = value;
             this.color.pma = value.baseTexture.premultiplyAlpha;
@@ -141,11 +153,13 @@ export class DoubleTintMeshMaterial extends Shader {
      * @default 1
      * @member {number}
      */
-    set alpha(value) {
+    set alpha(value)
+    {
         this.color.alpha = value;
     }
 
-    get alpha() {
+    get alpha()
+    {
         return this.color.alpha;
     }
 
@@ -154,11 +168,13 @@ export class DoubleTintMeshMaterial extends Shader {
      * @member {number}
      * @default 0xFFFFFF
      */
-    set tint(value) {
+    set tint(value)
+    {
         this.color.tintBGR = value;
     }
 
-    get tint() {
+    get tint()
+    {
         return this.color.tintBGR;
     }
 
@@ -166,19 +182,23 @@ export class DoubleTintMeshMaterial extends Shader {
      * Gets called automatically by the Mesh. Intended to be overridden for custom
      * MeshMaterial objects.
      */
-    update() {
+    update()
+    {
         this.color.updateTransform();
-        if (this._colorId !== this.color._updateID) {
+        if (this._colorId !== this.color._updateID)
+        {
             this._colorId = this.color._updateID;
             const { color, uniforms } = this;
-            premultiplyRgba(color.light, color.light[3], uniforms.uLight, color.dark[3] > 0.0);
-            premultiplyRgba(color.dark, color.light[3], uniforms.uDark, color.dark[3] > 0.0);
-            uniforms.uDark[3] = color.dark[3];
+
+            tmpClr.setValue(color.light).premultiply(color.light[3], color.dark[3] > 0.0).toArray(uniforms.uLight);
+            tmpClr.setValue(color.dark).premultiply(color.light[3], color.dark[3] > 0.0).toArray(uniforms.uDark);
         }
 
-        if (this.uvMatrix.update()) {
+        if (this.uvMatrix.update())
+        {
             this.uniforms.uTextureMatrix = this.uvMatrix.mapCoord;
-            if (this.allowTrim) {
+            if (this.allowTrim)
+            {
                 this.uniforms.uClampFrame = this.uvMatrix.uClampFrame;
             }
         }

@@ -1,17 +1,16 @@
 import {
-    AbstractBatchRenderer,
-    BatchShaderGenerator,
+    BatchRenderer,
     BatchTextureArray,
-    Buffer,
+    Buffer, Color, ExtensionType,
     Geometry, Renderer,
     ViewableBuffer
-} from "@pixi/core";
-import {premultiplyBlendMode, premultiplyTint} from "@pixi/utils";
-import {BLEND_MODES, TYPES} from "@pixi/constants";
-import {settings} from "../../settings";
+} from '@pixi/core';
+import { premultiplyBlendMode, premultiplyTint } from '@pixi/utils';
+import { BLEND_MODES, TYPES } from '@pixi/constants';
+import { settings } from '../../settings';
 
-const shaderVert =
-`precision highp float;
+const shaderVert
+= `precision highp float;
 attribute vec2 aVertexPosition;
 attribute vec2 aTextureCoord;
 attribute vec4 aLight, aDark;
@@ -70,144 +69,146 @@ export class DarkLightGeometry extends Geometry
     }
 }
 
-export class DarkLightPluginFactory {
-    static create(options: any): any
+export class HeavenBatchRenderer extends BatchRenderer
+{
+    static extension = {
+        name: 'batchHeaven',
+        type: ExtensionType.RendererPlugin
+    };
+
+    constructor(renderer: Renderer)
     {
-        const { vertex, fragment, vertexSize, geometryClass } = (Object as any).assign({
-            vertex: shaderVert,
-            fragment: shaderFrag,
-            geometryClass: DarkLightGeometry,
-            vertexSize: 7,
-        }, options);
+        super(renderer);
+        this.geometryClass = DarkLightGeometry;
+        this.vertexSize = 7;
+    }
 
-        return class BatchPlugin extends AbstractBatchRenderer
+    setShaderGenerator({ vertex = shaderVert, fragment = shaderFrag } = {})
+    {
+        super.setShaderGenerator({ vertex, fragment });
+    }
+
+    packInterleavedGeometry(element: any, attributeBuffer: ViewableBuffer, indexBuffer: Uint16Array,
+        aIndex: number, iIndex: number)
+    {
+        const {
+            uint32View,
+            float32View,
+        } = attributeBuffer;
+
+        let lightRgba = -1;
+        let darkRgba = 0;
+
+        if (element.color)
         {
-            constructor(renderer: Renderer)
-            {
-                super(renderer);
+            lightRgba = element.color.lightRgba;
+            darkRgba = element.color.darkRgba;
+        }
+        else
+        {
+            const alpha = Math.min(element.worldAlpha, 1.0);
 
-                this.shaderGenerator = new BatchShaderGenerator(vertex, fragment);
-                this.geometryClass = geometryClass;
-                this.vertexSize = vertexSize;
+            lightRgba = Color.shared
+                .setValue(element._tintRGB)
+                .toPremultiplied(alpha, element._texture.baseTexture.alphaMode > 0);
+        }
+
+        if (settings.BLEND_ADD_UNITY && element.blendAddUnity)
+        {
+            lightRgba = lightRgba & 0xffffff;
+        }
+
+        const p = aIndex / this.vertexSize;
+        const uvs = element.uvs;
+        const indices = element.indices;
+        const vertexData = element.vertexData;
+        const textureId = element._texture.baseTexture._batchLocation;
+
+        for (let i = 0; i < vertexData.length; i += 2)
+        {
+            float32View[aIndex++] = vertexData[i];
+            float32View[aIndex++] = vertexData[i + 1];
+            float32View[aIndex++] = uvs[i];
+            float32View[aIndex++] = uvs[i + 1];
+            uint32View[aIndex++] = lightRgba;
+            uint32View[aIndex++] = darkRgba;
+            float32View[aIndex++] = textureId;
+        }
+
+        for (let i = 0; i < indices.length; i++)
+        {
+            indexBuffer[iIndex++] = p + indices[i];
+        }
+    }
+
+    /**
+     * I override this method because of special alpha case that can be batched and work with any masks
+     * @param texArray
+     * @param start
+     * @param finish
+     */
+    buildDrawCalls(texArray: BatchTextureArray, start: number, finish: number): void
+    {
+        const thisAny = this as any;
+        const {
+            _bufferedElements: elements,
+            _attributeBuffer,
+            _indexBuffer,
+            vertexSize,
+        } = thisAny;
+        const drawCalls = BatchRenderer._drawCallPool;
+
+        let dcIndex = thisAny._dcIndex;
+        let aIndex = thisAny._aIndex;
+        let iIndex = thisAny._iIndex;
+
+        let drawCall = drawCalls[dcIndex] as any;
+
+        drawCall.start = thisAny._iIndex;
+        drawCall.texArray = texArray;
+
+        for (let i = start; i < finish; ++i)
+        {
+            const sprite = elements[i];
+            const tex = sprite._texture.baseTexture;
+            let spriteBlendMode = premultiplyBlendMode[
+                tex.alphaMode ? 1 : 0][sprite.blendMode];
+
+            if (settings.BLEND_ADD_UNITY)
+            {
+                sprite.blendAddUnity = (spriteBlendMode === BLEND_MODES.ADD && tex.alphaMode);
+                if (sprite.blendAddUnity)
+                {
+                    spriteBlendMode = BLEND_MODES.NORMAL;
+                }
             }
 
-            vertexSize: number;
+            elements[i] = null;
 
-            packInterleavedGeometry(element: any, attributeBuffer: ViewableBuffer, indexBuffer: Uint16Array, aIndex: number, iIndex: number) {
-                const {
-                    uint32View,
-                    float32View,
-                } = attributeBuffer;
-
-                let lightRgba = -1;
-                let darkRgba = 0;
-
-                if (element.color) {
-                    lightRgba = element.color.lightRgba;
-                    darkRgba = element.color.darkRgba;
-                } else {
-                    const alpha = Math.min(element.worldAlpha, 1.0);
-                    lightRgba = (alpha < 1.0
-                        && element._texture.baseTexture.premultiplyAlpha)
-                        ? premultiplyTint(element._tintRGB, alpha)
-                        : element._tintRGB + (alpha * 255 << 24);
-                }
-
-                if (settings.BLEND_ADD_UNITY && element.blendAddUnity) {
-                    lightRgba = lightRgba & 0xffffff;
-                }
-
-                const p = aIndex / this.vertexSize;
-                const uvs = element.uvs;
-                const indices = element.indices;
-                const vertexData = element.vertexData;
-                const textureId = element._texture.baseTexture._batchLocation;
-
-                for (let i = 0; i < vertexData.length; i += 2)
-                {
-                    float32View[aIndex++] = vertexData[i];
-                    float32View[aIndex++] = vertexData[i + 1];
-                    float32View[aIndex++] = uvs[i];
-                    float32View[aIndex++] = uvs[i + 1];
-                    uint32View[aIndex++] = lightRgba;
-                    uint32View[aIndex++] = darkRgba;
-                    float32View[aIndex++] = textureId;
-                }
-
-                for (let i = 0; i < indices.length; i++)
-                {
-                    indexBuffer[iIndex++] = p + indices[i];
-                }
-            }
-
-            /**
-             * I override this method because of special alpha case that can be batched and work with any masks
-             * @param texArray
-             * @param start
-             * @param finish
-             */
-            buildDrawCalls(texArray: BatchTextureArray, start: number, finish: number): void
+            if (start < i && drawCall.blend !== spriteBlendMode)
             {
-                const thisAny = this as any;
-                const {
-                    _bufferedElements: elements,
-                    _attributeBuffer,
-                    _indexBuffer,
-                    vertexSize,
-                } = thisAny;
-                const drawCalls = AbstractBatchRenderer._drawCallPool;
-
-                let dcIndex = thisAny._dcIndex;
-                let aIndex = thisAny._aIndex;
-                let iIndex = thisAny._iIndex;
-
-                let drawCall = drawCalls[dcIndex] as any;
-
-                drawCall.start = thisAny._iIndex;
+                drawCall.size = iIndex - drawCall.start;
+                start = i;
+                drawCall = drawCalls[++dcIndex];
                 drawCall.texArray = texArray;
-
-                for (let i = start; i < finish; ++i)
-                {
-                    const sprite = elements[i];
-                    const tex = sprite._texture.baseTexture;
-                    let spriteBlendMode = premultiplyBlendMode[
-                        tex.alphaMode ? 1 : 0][sprite.blendMode];
-
-                    if (settings.BLEND_ADD_UNITY) {
-                        sprite.blendAddUnity = (spriteBlendMode === BLEND_MODES.ADD && tex.alphaMode);
-                        if (sprite.blendAddUnity) {
-                            spriteBlendMode = BLEND_MODES.NORMAL;
-                        }
-                    }
-
-                    elements[i] = null;
-
-                    if (start < i && drawCall.blend !== spriteBlendMode)
-                    {
-                        drawCall.size = iIndex - drawCall.start;
-                        start = i;
-                        drawCall = drawCalls[++dcIndex];
-                        drawCall.texArray = texArray;
-                        drawCall.start = iIndex;
-                    }
-
-                    this.packInterleavedGeometry(sprite, _attributeBuffer, _indexBuffer, aIndex, iIndex);
-                    aIndex += sprite.vertexData.length / 2 * vertexSize;
-                    iIndex += sprite.indices.length;
-
-                    drawCall.blend = spriteBlendMode;
-                }
-
-                if (start < finish)
-                {
-                    drawCall.size = iIndex - drawCall.start;
-                    ++dcIndex;
-                }
-
-                thisAny._dcIndex = dcIndex;
-                thisAny._aIndex = aIndex;
-                thisAny._iIndex = iIndex;
+                drawCall.start = iIndex;
             }
-        };
+
+            this.packInterleavedGeometry(sprite, _attributeBuffer, _indexBuffer, aIndex, iIndex);
+            aIndex += sprite.vertexData.length / 2 * vertexSize;
+            iIndex += sprite.indices.length;
+
+            drawCall.blend = spriteBlendMode;
+        }
+
+        if (start < finish)
+        {
+            drawCall.size = iIndex - drawCall.start;
+            ++dcIndex;
+        }
+
+        thisAny._dcIndex = dcIndex;
+        thisAny._aIndex = aIndex;
+        thisAny._iIndex = iIndex;
     }
 }

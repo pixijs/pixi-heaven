@@ -1,25 +1,29 @@
-import {ColorTransform} from "../ColorTransform";
-import {Mesh as MeshBase, MeshGeometry} from '@pixi/mesh';
-import {SpriteH} from "../sprites/SpriteH";
-import {Geometry, Renderer, State, Texture} from "@pixi/core";
-import {DoubleTintMeshMaterial} from "./DoubleTintMeshMaterial";
+import { ColorTransform } from '../ColorTransform';
+import { Mesh as MeshBase, MeshGeometry } from '@pixi/mesh';
+import { SpriteH } from '../sprites/SpriteH';
+import { Geometry, Renderer, State, Texture } from '@pixi/core';
+import { DoubleTintMeshMaterial } from './DoubleTintMeshMaterial';
 
-export class MeshH extends MeshBase {
+export class MeshH extends MeshBase
+{
     color: ColorTransform = null;
     maskSprite: SpriteH = null;
     maskVertexData: Float32Array = null;
     useSpriteMask = false;
 
-    constructor(geometry: Geometry, shader: DoubleTintMeshMaterial, state: State, drawMode?: number) {
+    constructor(geometry: Geometry, shader: DoubleTintMeshMaterial, state: State, drawMode?: number)
+    {
         super(geometry, shader as any, state, drawMode);
         this.color = shader.color;
     }
 
-    _renderDefault(renderer: Renderer) {
+    _renderDefault(renderer: Renderer)
+    {
         const shader = this.shader as any as DoubleTintMeshMaterial;
 
         shader.color.alpha = this.worldAlpha;
-        if (shader.update) {
+        if (shader.update)
+        {
             shader.update();
         }
 
@@ -40,15 +44,20 @@ export class MeshH extends MeshBase {
         renderer.geometry.draw(this.drawMode, this.size, this.start, (this.geometry as any).instanceCount);
     }
 
-    _render(renderer: Renderer) {
+    _render(renderer: Renderer)
+    {
         // part of SimpleMesh
-        if (this.maskSprite) {
+        if (this.maskSprite)
+        {
             this.useSpriteMask = true;
         }
-        if (this.useSpriteMask) {
+        if (this.useSpriteMask)
+        {
             (this.material as any).pluginName = 'batchMasked';
             this._renderToBatch(renderer);
-        } else {
+        }
+        else
+        {
             super._render(renderer);
         }
     }
@@ -59,15 +68,17 @@ export class MeshH extends MeshBase {
         super._renderToBatch(renderer);
     }
 
-    calculateMaskVertices() {
+    calculateMaskVertices()
+    {
         SpriteH.prototype.calculateMaskVertices.call(this);
     }
 }
 
-
-export class SimpleMeshH extends MeshH {
+export class SimpleMeshH extends MeshH
+{
     constructor(texture: Texture, vertices?: Float32Array, uvs?: Float32Array,
-                indices?: Uint16Array, drawMode?: number) {
+        indices?: Uint16Array, drawMode?: number)
+    {
         super(new MeshGeometry(vertices, uvs, indices),
             new DoubleTintMeshMaterial(texture),
             null,
@@ -78,16 +89,20 @@ export class SimpleMeshH extends MeshH {
 
     autoUpdate = true;
 
-    get vertices() {
+    get vertices()
+    {
         return this.geometry.getBuffer('aVertexPosition').data as Float32Array;
     }
 
-    set vertices(value) {
+    set vertices(value)
+    {
         this.geometry.getBuffer('aVertexPosition').data = value;
     }
 
-    _render(renderer: Renderer) {
-        if (this.autoUpdate) {
+    _render(renderer: Renderer)
+    {
+        if (this.autoUpdate)
+        {
             this.geometry.getBuffer('aVertexPosition').update();
         }
 

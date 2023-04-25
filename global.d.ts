@@ -1,11 +1,9 @@
 declare namespace GlobalMixins {
     interface Sprite {
-        convertToHeaven(): import('pixi-heaven').SpriteHeaven;
+        convertToHeaven(): import('pixi-heaven').SpriteH;
     }
 
 	export interface Container {
-        convertToHeaven(): void;
-
         convertSubtreeToHeaven(): void;
 	}
 

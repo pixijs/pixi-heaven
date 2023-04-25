@@ -1,15 +1,16 @@
-import {AnimationState, ITextureAnimationTarget} from '../../animation/AnimationState';
-import {Matrix} from '@pixi/math';
-import {ColorTransform} from '../ColorTransform';
-import {Renderer, Texture, TextureMatrix} from '@pixi/core';
-import {Sprite} from '@pixi/sprite';
-import {sign} from '@pixi/utils';
+import { AnimationState, ITextureAnimationTarget } from '../../animation/AnimationState';
+import { Matrix } from '@pixi/math';
+import { ColorTransform } from '../ColorTransform';
+import { Renderer, Texture, TextureMatrix } from '@pixi/core';
+import { Sprite } from '@pixi/sprite';
+import { sign } from '@pixi/utils';
 
 const tempMat = new Matrix();
 
 const defIndices = new Uint16Array([0, 1, 2, 0, 2, 3]);
 
-export class SpriteH extends Sprite implements ITextureAnimationTarget {
+export class SpriteH extends Sprite implements ITextureAnimationTarget
+{
     color = new ColorTransform();
     maskSprite: SpriteH = null;
     maskVertexData: Float32Array = null;
@@ -19,88 +20,101 @@ export class SpriteH extends Sprite implements ITextureAnimationTarget {
     // modified by renderer
     blendAddUnity = false;
 
-    constructor(texture: Texture) {
+    constructor(texture: Texture)
+    {
         super(texture);
         this.pluginName = 'batchHeaven';
         if (this.texture.valid) this._onTextureUpdate();
     }
 
-    get _tintRGB() {
-        this.color.updateTransform();
-        return this.color.lightRgba & 0xffffff;
-    }
-
-    set _tintRGB(value: number) {
-        //nothing
-    }
-
-    get tint() {
+    get tint()
+    {
         return this.color ? this.color.tintBGR : 0xffffff;
     }
 
-    set tint(value: number) {
-        this.color && (this.color.tintBGR = value);
+    set tint(value: number)
+    {
+        if (this.color)
+        {
+            this.color.tintBGR = value;
+        }
     }
 
-    _onTextureUpdate() {
+    _onTextureUpdate()
+    {
         const thisAny = this as any;
+
         thisAny._textureID = -1;
         thisAny._textureTrimmedID = -1;
 
         const texture = thisAny._texture;
-        if (texture.polygon) {
+
+        if (texture.polygon)
+        {
             this.uvs = texture.polygon.uvs;
             this.indices = texture.polygon.indices;
-        } else {
+        }
+        else
+        {
             this.uvs = texture._uvs.uvsFloat32;
             this.indices = defIndices;
         }
 
         this._cachedTint = 0xFFFFFF;
-        if (this.color) {
+        if (this.color)
+        {
             this.color.pma = thisAny._texture.baseTexture.premultipliedAlpha;
         }
 
         // so if _width is 0 then width was not set..
-        if (thisAny._width) {
+        if (thisAny._width)
+        {
             this.scale.x = sign(this.scale.x) * thisAny._width / thisAny._texture.orig.width;
         }
 
-        if (thisAny._height) {
+        if (thisAny._height)
+        {
             this.scale.y = sign(this.scale.y) * thisAny._height / thisAny._texture.orig.height;
         }
     }
 
-    _render(renderer: Renderer) {
+    _render(renderer: Renderer)
+    {
         this.color.alpha = this.worldAlpha;
         this.color.updateTransform();
         super._render(renderer);
     }
 
-    _calculateBounds() {
+    _calculateBounds()
+    {
         const thisAny = this as any;
         const polygon = (thisAny as any).polygon;
         const trim = thisAny.trim;
         const orig = thisAny.orig;
 
         // F irst lets check to see if the current texture has a trim..
-        if (!polygon && (!trim || (trim.width === orig.width && trim.height === orig.height))) {
+        if (!polygon && (!trim || (trim.width === orig.width && trim.height === orig.height)))
+        {
             // no trim! lets use the usual calculations..
             this.calculateVertices();
             this._bounds.addQuad(thisAny.vertexData as any);
-        } else {
+        }
+        else
+        {
             // lets calculate a special trimmed bounds...
             this.calculateTrimmedVertices();
             this._bounds.addQuad(thisAny.vertexTrimmedData as any);
         }
     }
 
-    calculateVertices() {
+    calculateVertices()
+    {
         const thisAny = this as any;
         const transform = this.transform as any;
         const texture = thisAny._texture as any;
 
-        if (thisAny._transformID === transform._worldID && thisAny._textureID === texture._updateID) {
+        if (thisAny._transformID === transform._worldID && thisAny._textureID === texture._updateID)
+        {
             return;
         }
 
@@ -119,11 +133,13 @@ export class SpriteH extends Sprite implements ITextureAnimationTarget {
         const anchor = thisAny._anchor as any;
         const orig = texture.orig;
 
-        if (texture.polygon) {
+        if (texture.polygon)
+        {
             const vertices = texture.polygon.vertices;
             const n = vertices.length;
 
-            if (thisAny.vertexData.length !== n) {
+            if (thisAny.vertexData.length !== n)
+            {
                 thisAny.vertexData = new Float32Array(n);
             }
 
@@ -132,14 +148,17 @@ export class SpriteH extends Sprite implements ITextureAnimationTarget {
             const dx = -(anchor._x * orig.width);
             const dy = -(anchor._y * orig.height);
 
-            for (let i = 0; i < n; i += 2) {
+            for (let i = 0; i < n; i += 2)
+            {
                 const x = vertices[i] + dx;
                 const y = vertices[i + 1] + dy;
 
-                vertexData[i] = x * a + y * c + tx;
-                vertexData[i + 1] = x * b + y * d + ty;
+                vertexData[i] = (x * a) + (y * c) + tx;
+                vertexData[i + 1] = (x * b) + (y * d) + ty;
             }
-        } else {
+        }
+        else
+        {
             const vertexData = thisAny.vertexData;
             const trim = texture.trim;
 
@@ -148,7 +167,8 @@ export class SpriteH extends Sprite implements ITextureAnimationTarget {
             let h0 = 0;
             let h1 = 0;
 
-            if (trim) {
+            if (trim)
+            {
                 // if the sprite is trimmed and is not a tilingsprite then we need to add the extra
                 // space before transforming the sprite coords.
                 w1 = trim.x - (anchor._x * orig.width);
@@ -156,7 +176,9 @@ export class SpriteH extends Sprite implements ITextureAnimationTarget {
 
                 h1 = trim.y - (anchor._y * orig.height);
                 h0 = h1 + trim.height;
-            } else {
+            }
+            else
+            {
                 w1 = -anchor._x * orig.width;
                 w0 = w1 + orig.width;
 
@@ -182,24 +204,27 @@ export class SpriteH extends Sprite implements ITextureAnimationTarget {
         }
     }
 
-    calculateMaskVertices() {
-        //WE HAVE A MASK
+    calculateMaskVertices()
+    {
+        // WE HAVE A MASK
         const maskSprite = this.maskSprite;
         const tex = maskSprite.texture;
         const orig = tex.orig;
         const anchor = maskSprite.anchor;
 
-        if (!tex.valid) {
+        if (!tex.valid)
+        {
             return;
         }
-        if (!tex.uvMatrix) {
+        if (!tex.uvMatrix)
+        {
             // margin = 0.0, let it bleed a bit, shader code becomes easier
             // assuming that atlas textures were made with 1-pixel padding
             tex.uvMatrix = new TextureMatrix(tex, 0.0);
         }
         tex.uvMatrix.update();
 
-        //same operations as in SpriteMaskFilter
+        // same operations as in SpriteMaskFilter
         maskSprite.transform.worldTransform.copyTo(tempMat);
         tempMat.invert();
         tempMat.scale(1.0 / orig.width, 1.0 / orig.height);
@@ -209,23 +234,41 @@ export class SpriteH extends Sprite implements ITextureAnimationTarget {
         const vertexData = (this as any).vertexData;
         const n = vertexData.length;
 
-        if (!this.maskVertexData || this.maskVertexData.length !== n) {
+        if (!this.maskVertexData || this.maskVertexData.length !== n)
+        {
             this.maskVertexData = new Float32Array(n);
         }
 
         const maskVertexData = this.maskVertexData;
 
-        for (let i = 0; i < n; i += 2) {
-            maskVertexData[i] = vertexData[i] * tempMat.a + vertexData[i + 1] * tempMat.c + tempMat.tx;
-            maskVertexData[i + 1] = vertexData[i] * tempMat.b + vertexData[i + 1] * tempMat.d + tempMat.ty;
+        for (let i = 0; i < n; i += 2)
+        {
+            maskVertexData[i] = (vertexData[i] * tempMat.a) + (vertexData[i + 1] * tempMat.c) + tempMat.tx;
+            maskVertexData[i + 1] = (vertexData[i] * tempMat.b) + (vertexData[i + 1] * tempMat.d) + tempMat.ty;
         }
     }
 
-    destroy(options?: any) {
-        if (this.animState) {
+    destroy(options?: any)
+    {
+        if (this.animState)
+        {
             this.animState.stop();
             this.animState = null;
         }
         super.destroy(options);
     }
 }
+
+Object.defineProperty(SpriteH.prototype, '_tintRGB', {
+    get()
+    {
+        this.color.updateTransform();
+
+        return this.color.lightRgba & 0xffffff;
+    },
+    set()
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    {
+
+    }
+});

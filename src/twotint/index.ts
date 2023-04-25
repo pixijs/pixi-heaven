@@ -1,5 +1,3 @@
-import {MaskedPluginFactory} from "./sprites/MaskedBatchRenderer";
-
 export * from './mesh/MeshH';
 export * from './mesh/DoubleTintMeshMaterial';
 
@@ -12,11 +10,11 @@ export * from './sprites/SpriteH';
 export * from './BitmapTextH';
 export * from './ColorTransform';
 
-import {Renderer} from "@pixi/core";
-import {DarkLightPluginFactory} from "./sprites/HeavenBatchRenderer";
-import {applyConvertMixins} from "./sprites/convert";
+import { extensions } from '@pixi/core';
+import { HeavenBatchRenderer } from './sprites/HeavenBatchRenderer';
+import { MaskedBatchRenderer } from './sprites/MaskedBatchRenderer';
+import { applyConvertMixins } from './sprites/convert';
 
-Renderer.registerPlugin('batchHeaven', DarkLightPluginFactory.create({}));
-Renderer.registerPlugin('batchMasked', MaskedPluginFactory.create({}));
-
+extensions.add(HeavenBatchRenderer);
+extensions.add(MaskedBatchRenderer);
 applyConvertMixins();
