@@ -4,11 +4,14 @@
 
 This is heaven for sprites. Want to color them better? Wanna use advanced colors? Its all here!
 
-Works with PixiJS v6
+Works with PixiJS v7
 
-For v5 please see [v6.x branch](https://github.com/gameofbombs/pixi-heaven/tree/v6.x), npm version `0.3.3`
+For v6 please see [v6.x branch](https://github.com/gameofbombs/pixi-heaven/tree/v6.x), npm version `0.3.3`
+
 For v5 please see [v5.x branch](https://github.com/gameofbombs/pixi-heaven/tree/v5.x), npm version `0.2.3`
+
 For v4 please see [v4.x branch](https://github.com/gameofbombs/pixi-heaven/tree/v4.x), npm version `0.1.21`
+
 
 [Examples](https://pixijs.github.io/examples/#/plugin-heaven/invert.js)
 
